@@ -60,7 +60,7 @@ class Lock
 	/**
 	 * Разобранное расписание из `.settings.php`.
 	 *
-	 * @return array{soft_from: ?string, hard_from: ?string, off: bool, users: int[]}
+	 * @return array{soft_from: ?string, hard_from: ?string, off: bool, users: ?int[]}
 	 */
 	public static function schedule(): array
 	{
@@ -166,10 +166,15 @@ class Lock
 	/**
 	 * Приостановка касается текущего пользователя.
 	 *
-	 * Пустой список — всех. Список из одного мусора даёт пустой массив ID, и это
-	 * НЕ повод приостановить всем: опечатка в настройке не должна запирать портал.
+	 * `null` — списка нет или он пуст, и тогда приостановка касается всех, у кого
+	 * доработка включена.
+	 *
+	 * ⚠ Заданный, но нечитаемый список («abc») приходит сюда пустым массивом — и
+	 * это НЕ повод приостановить всем: опечатка в настройке не должна запирать
+	 * портал. Именно поэтому `userIds()` разводит «пусто» и «мусор», а не
+	 * возвращает пустой массив в обоих случаях.
 	 */
-	private static function appliesToCurrentUser(array $users): bool
+	private static function appliesToCurrentUser(?array $users): bool
 	{
 		global $USER;
 
@@ -178,20 +183,58 @@ class Lock
 			return false;
 		}
 
-		return $users === [] || in_array((int)$USER->GetID(), $users, true);
+		if ($users === null)
+		{
+			return true;
+		}
+
+		return in_array((int)$USER->GetID(), $users, true);
 	}
 
-	/** @return int[] */
-	private static function userIds($raw): array
+	/**
+	 * ID из настройки `users`.
+	 *
+	 * ⚠ `null` и пустой массив здесь значат разное, и склеивать их нельзя:
+	 * `null` — списка нет или он пуст, приостановка касается всех; пустой массив
+	 * — список задан, но читаемых ID в нём нет, и тогда не касается никого.
+	 * Пока оба случая давали один пустой массив, опечатка в `users`
+	 * приостанавливала доработку всему порталу — против инварианта модуля
+	 * «ошибка в настройках уводит в сторону работающей доработки».
+	 *
+	 * ⚠ Скаляр (`'users' => 562`) списком не считается: одиночный ID пишется
+	 * массивом `[562]` или строкой `'562'`.
+	 *
+	 * Access::isAllowedUser() разбирает свой список похоже, но трактует иначе:
+	 * там отсутствие настройки значит «никому», а не «всем». Разница намеренная
+	 * — сравни докблоки, прежде чем объединять.
+	 *
+	 * @return int[]|null
+	 */
+	private static function userIds($raw): ?array
 	{
+		if ($raw === null)
+		{
+			return null;
+		}
+
 		if (is_string($raw))
 		{
+			if (trim($raw) === '')
+			{
+				return null;
+			}
+
 			$raw = explode(',', $raw);
 		}
 
 		if (!is_array($raw))
 		{
 			return [];
+		}
+
+		if ($raw === [])
+		{
+			return null;
 		}
 
 		return array_values(array_filter(array_map('intval', $raw)));
