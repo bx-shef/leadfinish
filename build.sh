@@ -3,8 +3,9 @@
 # Сборка поставки модуля shef.leadfinish.
 #
 # Запускать из корня репозитория:
-#   ./build.sh           проверки + архив shef.leadfinish.zip
-#   ./build.sh --check   только проверки, без архива — то же гоняет CI
+#   ./build.sh            проверки + архив shef.leadfinish.zip
+#   ./build.sh --check    только проверки, без архива — то же гоняет CI
+#   ./build.sh --version  напечатать версию модуля и выйти
 #
 # Подробности и установка на портал — docs/build-and-install.md.
 
@@ -16,12 +17,14 @@ ARCHIVE="${MODULE}.zip"
 cd "$(dirname "$0")"
 
 CHECK_ONLY=false
+PRINT_VERSION=false
 case "${1:-}" in
 	--check) CHECK_ONLY=true ;;
+	--version) PRINT_VERSION=true ;;
 	'') ;;
 	*)
 		echo "Неизвестный аргумент: $1" >&2
-		echo "Использование: $0 [--check]" >&2
+		echo "Использование: $0 [--check | --version]" >&2
 		exit 2
 		;;
 esac
@@ -38,6 +41,23 @@ step()
 }
 
 [ -d "$MODULE" ] || fail "каталог $MODULE/ не найден — запускай из корня репозитория"
+
+# Версия модуля — единственный источник правды и для сборки, и для тега релиза.
+read_version()
+{
+	php -r '
+		include "'"$MODULE"'/install/version.php";
+		echo $arModuleVersion["VERSION"] ?? "";
+	'
+}
+
+if $PRINT_VERSION
+then
+	command -v php >/dev/null || { echo "ОШИБКА: нужен php в PATH" >&2; exit 1; }
+	version=$(read_version) && [ -n "$version" ] || { echo "ОШИБКА: в install/version.php не задан VERSION" >&2; exit 1; }
+	echo "$version"
+	exit 0
+fi
 command -v php >/dev/null || fail 'нужен php в PATH'
 command -v node >/dev/null || fail 'нужен node в PATH'
 
@@ -66,10 +86,7 @@ upper=$(find "$MODULE/lib" -type f | LC_ALL=C grep '[A-Z]' || true)
 # --- Версия ----------------------------------------------------------------
 # Единственный способ понять, что стоит на портале.
 
-version=$(php -r '
-	include "'"$MODULE"'/install/version.php";
-	echo $arModuleVersion["VERSION"] ?? "";
-') || fail 'не читается install/version.php'
+version=$(read_version) || fail 'не читается install/version.php'
 [ -n "$version" ] || fail 'в install/version.php не задан VERSION'
 step "версия модуля: $version"
 
