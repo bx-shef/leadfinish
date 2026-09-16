@@ -1,14 +1,21 @@
-# Релиз поставки: тег vX.Y.Z → собранный shef.leadfinish.zip на постоянной
-# ссылке. Артефакт прогона CI живёт 14 дней, релиз — всегда, поэтому «что
-# именно стоит на портале» можно проверить и через полгода.
+# Релиз поставки: собранный shef.leadfinish.zip на постоянной ссылке. Артефакт
+# прогона CI живёт 14 дней, релиз — всегда, поэтому «что именно стоит на
+# портале» можно проверить и через полгода.
 #
-#   git tag v1.3.0 && git push origin v1.3.0
+# Два входа, дальше всё общее:
+#
+#   git tag v1.3.0 && git push origin v1.3.0     с рабочей машины
+#   Actions → Релиз → Run workflow                кнопкой, тег поставит сам
+#
+# Ручной запуск выводит тег из VERSION внутри модуля, поэтому разойтись они не
+# могут в принципе. Пуш тега руками — наоборот, сверяется с VERSION.
 
 name: Релиз
 
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
 
 # Нужно на создание релиза, больше ничего.
 permissions:
@@ -27,35 +34,73 @@ jobs:
 
       # Тег и VERSION внутри модуля должны совпадать: иначе на портал уедет
       # архив, версия которого врёт, а версия — единственный способ понять,
-      # что там стоит.
-      - name: Сверить тег с версией модуля
+      # что там стоит. Пуш тега — сверяем, ручной запуск — выводим тег из
+      # VERSION, тогда расходиться нечему.
+      - name: Определить тег релиза
+        id: release
         run: |
-          tag="${GITHUB_REF_NAME#v}"
           version="$(./build.sh --version)"
-          echo "тег: $tag, версия модуля: $version"
-          if [ "$tag" != "$version" ]
+          echo "версия модуля: $version"
+
+          if [ "$GITHUB_EVENT_NAME" = 'push' ]
           then
-            echo "::error::Тег ${GITHUB_REF_NAME} не совпадает с VERSION=${version} в shef.leadfinish/install/version.php"
-            echo "::error::Либо поднимите VERSION, либо поставьте тег v${version}"
-            exit 1
+            if [ "${GITHUB_REF_NAME#v}" != "$version" ]
+            then
+              echo "::error::Тег ${GITHUB_REF_NAME} не совпадает с VERSION=${version} в shef.leadfinish/install/version.php"
+              echo "::error::Либо поднимите VERSION, либо поставьте тег v${version}"
+              exit 1
+            fi
+            tag="$GITHUB_REF_NAME"
+          else
+            # Релиз собирается из основной ветки: тег на ветке с недоведённой
+            # работой потом не отличить от настоящего.
+            if [ "$GITHUB_REF_NAME" != 'main' ]
+            then
+              echo "::error::Ручной релиз запускается только из main, а запущен из ${GITHUB_REF_NAME}"
+              exit 1
+            fi
+            tag="v${version}"
           fi
+
+          echo "тег релиза: $tag"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
       # Те же проверки, что и в CI, плюс сборка архива.
       - name: Собрать shef.leadfinish.zip
         run: ./build.sh
 
+      # Только для ручного запуска: пушем тега релиз уже помечен. Ставим уже
+      # после сборки — упавшая сборка не должна оставлять тег без релиза.
+      - name: Поставить тег
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          if git ls-remote --exit-code --tags origin "$TAG" >/dev/null 2>&1
+          then
+            echo "::error::Тег ${TAG} уже существует — поднимите VERSION в shef.leadfinish/install/version.php"
+            exit 1
+          fi
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git tag -a "$TAG" -m "Релиз ${TAG#v}"
+          git push origin "$TAG"
+
       # Мержим через Squash and Merge, поэтому каждый коммит в main — это PR,
       # и список коммитов уже читается как changelog.
       - name: Собрать описание релиза
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
         run: |
-          previous="$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)"
+          previous="$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)"
 
           {
             echo '## Что изменилось'
             echo
             if [ -n "$previous" ]
             then
-              git log --no-merges --pretty=format:'- %s' "${previous}..${GITHUB_REF_NAME}"
+              git log --no-merges --pretty=format:'- %s' "${previous}..${TAG}"
               echo
             else
               echo "- первый релиз"
@@ -78,7 +123,8 @@ jobs:
       - name: Выложить релиз
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" shef.leadfinish.zip \
-            --title "${GITHUB_REF_NAME}" \
+          gh release create "$TAG" shef.leadfinish.zip \
+            --title "$TAG" \
             --notes-file release-notes.md
