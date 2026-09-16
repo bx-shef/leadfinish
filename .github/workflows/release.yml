@@ -1,0 +1,84 @@
+# Релиз поставки: тег vX.Y.Z → собранный shef.leadfinish.zip на постоянной
+# ссылке. Артефакт прогона CI живёт 14 дней, релиз — всегда, поэтому «что
+# именно стоит на портале» можно проверить и через полгода.
+#
+#   git tag v1.3.0 && git push origin v1.3.0
+
+name: Релиз
+
+on:
+  push:
+    tags: ['v*']
+
+# Нужно на создание релиза, больше ничего.
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Собрать и выложить поставку
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Полная история и теги — для списка изменений с прошлого релиза.
+          fetch-depth: 0
+
+      # Тег и VERSION внутри модуля должны совпадать: иначе на портал уедет
+      # архив, версия которого врёт, а версия — единственный способ понять,
+      # что там стоит.
+      - name: Сверить тег с версией модуля
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version="$(./build.sh --version)"
+          echo "тег: $tag, версия модуля: $version"
+          if [ "$tag" != "$version" ]
+          then
+            echo "::error::Тег ${GITHUB_REF_NAME} не совпадает с VERSION=${version} в shef.leadfinish/install/version.php"
+            echo "::error::Либо поднимите VERSION, либо поставьте тег v${version}"
+            exit 1
+          fi
+
+      # Те же проверки, что и в CI, плюс сборка архива.
+      - name: Собрать shef.leadfinish.zip
+        run: ./build.sh
+
+      # Мержим через Squash and Merge, поэтому каждый коммит в main — это PR,
+      # и список коммитов уже читается как changelog.
+      - name: Собрать описание релиза
+        run: |
+          previous="$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)"
+
+          {
+            echo '## Что изменилось'
+            echo
+            if [ -n "$previous" ]
+            then
+              git log --no-merges --pretty=format:'- %s' "${previous}..${GITHUB_REF_NAME}"
+              echo
+            else
+              echo "- первый релиз"
+            fi
+            echo
+            echo '## Установка'
+            echo
+            echo 'Распаковать в `/home/bitrix/www/local/modules/`, поставить через'
+            echo '**Marketplace → Установленные решения**. Подробности и обновление уже'
+            echo 'стоящего модуля — в `docs/build-and-install.md`.'
+            if [ -n "$previous" ]
+            then
+              echo
+              echo "Предыдущий релиз: ${previous}."
+            fi
+          } > release-notes.md
+
+          cat release-notes.md
+
+      - name: Выложить релиз
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" shef.leadfinish.zip \
+            --title "${GITHUB_REF_NAME}" \
+            --notes-file release-notes.md
