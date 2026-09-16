@@ -27,7 +27,7 @@
 - Перед сдачей — `./build.sh --check` (`php -l`, `node --check`, регистр имён в
   `lib/`). Ровно это гоняет CI на каждый PR.
 - Версию в `shef.leadfinish/install/version.php` поднимаем при каждом изменении
-  поведения. Релиз — кнопкой **Actions → Релиз → Run workflow** от `main` либо
+  поведения. Релиз — кнопкой **Actions → Release → Run workflow** от `main` либо
   тегом `vX.Y.Z`; тег обязан совпадать с `VERSION`.
 
 ## Чего не делать
