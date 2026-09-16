@@ -1,0 +1,296 @@
+/* Подбор сделки для завершения лида (модуль shef.leadfinish). */
+
+.shef-leadfinish-body {
+	padding: 16px 18px 6px;
+}
+
+.shef-leadfinish-input {
+	box-sizing: border-box;
+	width: 100%;
+	padding: 8px 10px;
+	border: 1px solid #c6cdd3;
+	border-radius: 3px;
+	font-size: 14px;
+	line-height: 20px;
+}
+
+.shef-leadfinish-input:focus {
+	border-color: #2fc7f7;
+	outline: none;
+}
+
+.shef-leadfinish-hint {
+	margin: 6px 2px 12px;
+	color: #6a737d;
+	font-size: 12px;
+	line-height: 16px;
+}
+
+/* Период поиска — частая причина «сделка есть, а не находится». */
+.shef-leadfinish-period {
+	padding: 1px 4px;
+	border-radius: 3px;
+	background: #fff4d5;
+	color: #9a6b00;
+	font-weight: 600;
+}
+
+.shef-leadfinish-results {
+	max-height: 320px;
+	overflow-y: auto;
+}
+
+.shef-leadfinish-message {
+	padding: 14px 2px;
+	color: #6a737d;
+	font-size: 13px;
+}
+
+.shef-leadfinish-row {
+	padding: 10px 12px;
+	margin-bottom: 6px;
+	border: 1px solid #e6e9eb;
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+.shef-leadfinish-row:hover {
+	border-color: #b8c2c9;
+	background: #f7f9fa;
+}
+
+.shef-leadfinish-row.--selected {
+	border-color: #2fc7f7;
+	background: #eff9fd;
+}
+
+.shef-leadfinish-row-head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.shef-leadfinish-row-title {
+	font-size: 14px;
+	font-weight: 600;
+	color: #333;
+}
+
+.shef-leadfinish-row-open {
+	flex: none;
+	font-size: 12px;
+	color: #2066b0;
+	text-decoration: none;
+	white-space: nowrap;
+}
+
+.shef-leadfinish-row-open:hover {
+	text-decoration: underline;
+}
+
+.shef-leadfinish-row-meta {
+	margin-top: 3px;
+	font-size: 12px;
+	color: #525c69;
+}
+
+.shef-leadfinish-row-lead {
+	margin-top: 3px;
+	font-size: 12px;
+	color: #8a9199;
+}
+
+/* Сделка уже привязана к другому лиду — связь будет перезаписана. */
+.shef-leadfinish-row.--has-lead .shef-leadfinish-row-lead {
+	color: #c8842a;
+}
+
+/* Экран на время запроса привязки. */
+.shef-leadfinish-popup.--busy {
+	pointer-events: none;
+}
+
+.shef-leadfinish-popup.--busy .popup-window-content {
+	opacity: .55;
+}
+
+/* ───────── Экран приостановки доработки ───────── */
+
+.shef-leadfinish-lock {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 24px;
+	/*
+	 * ⚠ Минимальная высота в ПИКСЕЛЯХ, не в vh. Карточка лида часто открыта в
+	 * слайдере портала: высота в vh внутри фрейма считается от высоты самого
+	 * фрейма, и экран схлопывается в узкую полоску.
+	 */
+	min-height: 260px;
+	padding: 20px 22px 8px;
+}
+
+.shef-leadfinish-lock-scene-wrap {
+	flex: 0 0 300px;
+	max-width: 300px;
+}
+
+.shef-leadfinish-lock-scene {
+	width: 100%;
+	height: auto;
+
+	/* Цвета рисунка — свои, а не палитра портала: иначе правка темы поменяет
+	   смысл картинки заодно. */
+	--lock-machine: #eda100;
+	--lock-machine-dark: #b87c00;
+	--lock-steel: #6b7383;
+	--lock-steel-dark: #3a4150;
+	--lock-glass: #c3d6e8;
+	--lock-ground: #d0d5de;
+	--lock-smoke: #9aa3b2;
+	--lock-alarm: #d64545;
+}
+
+.shef-leadfinish-lock-text {
+	flex: 1 1 280px;
+	min-width: 0;
+}
+
+.shef-leadfinish-lock-title {
+	font-size: 16px;
+	font-weight: 600;
+	color: #333;
+}
+
+.shef-leadfinish-lock-lead {
+	margin: 8px 0 0;
+	font-size: 14px;
+	line-height: 20px;
+	color: #525c69;
+}
+
+.shef-leadfinish-lock-deadline {
+	margin: 14px 0 0;
+	font-size: 14px;
+	font-weight: 600;
+	color: #333;
+}
+
+.shef-leadfinish-lock-note {
+	margin: 10px 0 0;
+	font-size: 13px;
+	line-height: 19px;
+	color: #6a737d;
+}
+
+.shef-leadfinish-lock-bar {
+	margin-top: 16px;
+	height: 6px;
+	border-radius: 3px;
+	overflow: hidden;
+	background: #e6eaf0;
+}
+
+.shef-leadfinish-lock-bar-fill {
+	height: 100%;
+	width: 100%;
+	border-radius: 3px;
+	background: #d64545;
+	transition: width .5s linear;
+}
+
+.shef-leadfinish-lock-countdown {
+	margin: 8px 0 0;
+	font-size: 13px;
+	color: #6a737d;
+}
+
+/*
+ * Стрела дёргается и падает обратно. Это и есть «не работает»: не стоит
+ * неподвижно (так выглядит выключенная машина) и не копает (так выглядит
+ * работающая), а пытается и не может.
+ *
+ * ⚠ transform-box: view-box обязателен: без него точка поворота считается от
+ * рамки самой группы, и стрела улетает в сторону вместо поворота вокруг пальца.
+ */
+.shef-leadfinish-lock-scene .lock-arm {
+	transform-box: view-box;
+	transform-origin: 150px 142px;
+	animation: shef-lock-arm-try 3.6s ease-in-out infinite;
+}
+
+.shef-leadfinish-lock-scene .lock-body {
+	transform-box: view-box;
+	animation: shef-lock-shake 3.6s ease-in-out infinite;
+}
+
+.shef-leadfinish-lock-scene .lock-puff {
+	transform-box: view-box;
+	transform-origin: 206px 98px;
+	opacity: 0;
+}
+
+/* Разные длительности — чтобы клубы шли вразнобой: ровный ритм читается как
+   исправная работа. */
+.shef-leadfinish-lock-scene .lock-puff-1 { animation: shef-lock-puff 2.4s ease-out infinite; }
+.shef-leadfinish-lock-scene .lock-puff-2 { animation: shef-lock-puff 3.1s ease-out .7s infinite; }
+.shef-leadfinish-lock-scene .lock-puff-3 { animation: shef-lock-puff 2.7s ease-out 1.5s infinite; }
+
+.shef-leadfinish-lock-scene .lock-beacon {
+	animation: shef-lock-beacon 1.1s steps(1, end) infinite;
+}
+
+@keyframes shef-lock-arm-try {
+	0%, 54% { transform: rotate(0deg); }
+	59% { transform: rotate(-4deg); }
+	63% { transform: rotate(-2.4deg); }
+	68% { transform: rotate(-6deg); }
+	73% { transform: rotate(-4.6deg); }
+	84% { transform: rotate(.7deg); }
+	100% { transform: rotate(0deg); }
+}
+
+@keyframes shef-lock-shake {
+	0%, 54%, 100% { transform: translate(0, 0); }
+	57% { transform: translate(-.9px, .4px); }
+	60% { transform: translate(.9px, -.4px); }
+	64% { transform: translate(-.7px, .3px); }
+	68% { transform: translate(.7px, 0); }
+	72% { transform: translate(-.4px, .2px); }
+	76% { transform: translate(.3px, 0); }
+}
+
+@keyframes shef-lock-puff {
+	0% { opacity: 0; transform: translate(0, 0) scale(.5); }
+	20% { opacity: .5; }
+	100% { opacity: 0; transform: translate(-12px, -36px) scale(1.6); }
+}
+
+@keyframes shef-lock-beacon {
+	0%, 100% { opacity: 1; }
+	50% { opacity: .25; }
+}
+
+/*
+ * ⚠ Движение отключаемо. Человеку с вестибулярными нарушениями дёргающаяся
+ * картинка — не оживление экрана, а недомогание; и экран этот он видит не по
+ * своей воле. Без анимации рисунок остаётся осмысленным: стрела опущена, ковш
+ * на земле — машина стоит.
+ */
+@media (prefers-reduced-motion: reduce) {
+	.shef-leadfinish-lock-scene .lock-arm,
+	.shef-leadfinish-lock-scene .lock-body,
+	.shef-leadfinish-lock-scene .lock-puff,
+	.shef-leadfinish-lock-scene .lock-beacon {
+		animation: none;
+	}
+
+	.shef-leadfinish-lock-scene .lock-puff-2 {
+		opacity: .4;
+	}
+
+	.shef-leadfinish-lock-bar-fill {
+		transition: none;
+	}
+}

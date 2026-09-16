@@ -1,0 +1,64 @@
+# Пункты 2 и 3 чек-листа перед мержем (CONTRIBUTING.md) — машинно.
+# Гоняет ровно то же, что и локальный ./build.sh, чтобы CI и рабочее место
+# не расходились.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Новый пуш в ветку отменяет предыдущий прогон: зелёным считается последний.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Проверки (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # Диапазон PHP, который встречается на порталах BitrixVM. Модуль должен
+        # парситься на любом из них: какой стоит у заказчика — знает заказчик.
+        php: ['8.1', '8.2', '8.3']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Поставить PHP ${{ matrix.php }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+
+      # node предустановлен на образе раннера, отдельно ставить не нужно.
+      - name: php -l, node --check, нижний регистр в lib/, версия
+        run: ./build.sh --check
+
+  build:
+    name: Сборка поставки
+    runs-on: ubuntu-latest
+    needs: checks
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Собрать shef.leadfinish.zip
+        run: ./build.sh
+
+      # Архив из PR можно скачать и поставить на портал, не собирая руками.
+      - name: Приложить архив к прогону
+        uses: actions/upload-artifact@v4
+        with:
+          name: shef.leadfinish
+          path: shef.leadfinish.zip
+          retention-days: 14
+          if-no-files-found: error
