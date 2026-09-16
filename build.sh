@@ -64,8 +64,14 @@ command -v node >/dev/null || fail 'нужен node в PATH'
 # --- Синтаксис -------------------------------------------------------------
 # Минимум перед сборкой: иначе на портал уедет то, что даже не парсится.
 
+php_dirs=("$MODULE")
+if [ -d tests ]
+then
+	php_dirs+=(tests)
+fi
+
 step "синтаксис PHP ($(php -r 'echo PHP_VERSION;'))"
-find "$MODULE" -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null \
+find "${php_dirs[@]}" -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null \
 	|| fail 'php -l не прошёл'
 
 step "синтаксис JS ($(node --version))"
@@ -82,6 +88,26 @@ done < <(find "$MODULE/js" -name '*.js' -print0)
 step 'имена файлов в lib/ в нижнем регистре'
 upper=$(find "$MODULE/lib" -type f | LC_ALL=C grep '[A-Z]' || true)
 [ -z "$upper" ] || fail "заглавные буквы в путях lib/:"$'\n'"$upper"
+
+# --- Тесты -----------------------------------------------------------------
+# Здесь только то, что проверяется без рантайма Битрикса: разбор настроек,
+# нормализация, матрицы решений. Всё остальное ловит приёмочный чек-лист из
+# shef.leadfinish/CLAUDE.md — заменить его тестами нельзя, а дополнить нужно.
+
+step 'тесты чистой логики'
+shopt -s nullglob
+tests=(tests/*_test.php)
+shopt -u nullglob
+
+if [ ${#tests[@]} -eq 0 ]
+then
+	echo '    тестов нет'
+else
+	for test in "${tests[@]}"
+	do
+		php "$test" || fail "тест не прошёл: $test"
+	done
+fi
 
 # --- Версия ----------------------------------------------------------------
 # Единственный способ понять, что стоит на портале.

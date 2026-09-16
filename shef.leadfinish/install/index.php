@@ -19,7 +19,8 @@ if (class_exists('shef_leadfinish'))
  * через штатное событие ядра BX.Main.Popup:onAfterShow.
  *
  * Установка регистрирует обработчик main::OnEpilog, который подключает JS
- * только на детальной лида и только пользователям из настройки allowed_users.
+ * только на детальной лида и только пользователям из списка allowed_users
+ * в .settings.php модуля.
  */
 class shef_leadfinish extends CModule
 {
@@ -29,9 +30,6 @@ class shef_leadfinish extends CModule
 	public $MODULE_NAME;
 	public $MODULE_DESCRIPTION;
 	public $PARTNER_NAME;
-
-	/** Кому показывать кнопку сразу после установки (ID пользователей через запятую). */
-	private const DEFAULT_ALLOWED_USERS = '44,562';
 
 	public function __construct()
 	{
@@ -50,17 +48,16 @@ class shef_leadfinish extends CModule
 		ModuleManager::registerModule($this->MODULE_ID);
 		$this->InstallEvents();
 
-		// Значение по умолчанию ставим только если настройки ещё нет: повторная
-		// установка не должна затирать список, уже настроенный руками.
-		if (Option::get($this->MODULE_ID, 'allowed_users', '') === '')
-		{
-			Option::set($this->MODULE_ID, 'allowed_users', self::DEFAULT_ALLOWED_USERS);
-		}
+		// Настроек в базе у модуля нет: список allowed_users живёт в
+		// .settings.php, и ставить здесь нечего.
 	}
 
 	public function DoUninstall(): void
 	{
 		$this->UnInstallEvents();
+
+		// Чистим настройки, оставшиеся в базе от версий до 1.4.0, когда
+		// allowed_users ещё хранился там.
 		Option::delete($this->MODULE_ID);
 		ModuleManager::unRegisterModule($this->MODULE_ID);
 	}

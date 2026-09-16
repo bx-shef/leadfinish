@@ -2,7 +2,7 @@
 
 namespace Shef\LeadFinish;
 
-use Bitrix\Main\Config\Option;
+use Bitrix\Main\Config\Configuration;
 
 /**
  * Кому доступна кастомизация.
@@ -15,11 +15,23 @@ class Access
 	public const MODULE_ID = 'shef.leadfinish';
 
 	/**
-	 * Настройка allowed_users — ID пользователей через запятую.
+	 * Список живёт в `.settings.php` модуля, ключ `allowed_users`.
 	 *
-	 * **Пустое значение = всем авторизованным**: так задумано, чтобы после
-	 * обкатки на нескольких людях включить функциональность на всех, просто
-	 * очистив поле, без правки кода.
+	 * **Пустой список = всем авторизованным**: так задумано, чтобы после обкатки
+	 * на нескольких людях включить доработку на всех, просто очистив список, без
+	 * правки кода.
+	 *
+	 * ⚠ Три случая, которые легко склеить в один, а нельзя:
+	 *
+	 * - ключа НЕТ вовсе — доработка не настроена, доступа нет ни у кого;
+	 * - список пуст — доступ у всех авторизованных;
+	 * - список задан, но разобрать нечего («abc») — снова ни у кого.
+	 *
+	 * Разошлись они намеренно. «Нет ключа» — это, как правило, частичное
+	 * обновление: распаковали `lib/`, а `.settings.php` на сервере остался
+	 * старый. Считать это за «пусто» значило бы тихо раскатать кнопку на весь
+	 * портал. По той же причине мусор — не повод включить её всем: опечатка в
+	 * настройке не должна расширять доступ.
 	 */
 	public static function isAllowedUser(): bool
 	{
@@ -30,16 +42,57 @@ class Access
 			return false;
 		}
 
-		$allowed = trim((string)Option::get(self::MODULE_ID, 'allowed_users', ''));
-		if ($allowed === '')
+		$raw = Configuration::getInstance(self::MODULE_ID)->get('allowed_users');
+
+		if ($raw === null)
+		{
+			return false;
+		}
+
+		if (self::isEmptyList($raw))
 		{
 			return true;
 		}
 
-		$ids = array_filter(array_map('intval', explode(',', $allowed)));
+		return in_array((int)$USER->GetID(), self::userIds($raw), true);
+	}
 
-		// Список из одного мусора («abc») даёт пустой массив — это не повод
-		// внезапно включить кастомизацию всем, поэтому здесь именно false.
-		return in_array((int)$USER->GetID(), $ids, true);
+	/**
+	 * Настройка есть, но пуста.
+	 *
+	 * Пробелы считаем пустотой: `'  '` в файле — это стёртый список, а не список
+	 * из одного пробела.
+	 */
+	private static function isEmptyList($raw): bool
+	{
+		if (is_string($raw))
+		{
+			return trim($raw) === '';
+		}
+
+		return is_array($raw) && $raw === [];
+	}
+
+	/**
+	 * ID из настройки: и списком, и строкой через запятую.
+	 *
+	 * Строку принимаем потому, что файл правят руками, и `'44,562'` — первое,
+	 * что там напишут.
+	 *
+	 * @return int[]
+	 */
+	private static function userIds($raw): array
+	{
+		if (is_string($raw))
+		{
+			$raw = explode(',', $raw);
+		}
+
+		if (!is_array($raw))
+		{
+			return [];
+		}
+
+		return array_values(array_filter(array_map('intval', $raw)));
 	}
 }

@@ -73,11 +73,15 @@ shef.leadfinish/
 настройки ещё нет:
 
 ```php
-if (Option::get($this->MODULE_ID, 'allowed_users', '') === '')
+if (Option::get($this->MODULE_ID, 'report_email', '') === '')
 {
-	Option::set($this->MODULE_ID, 'allowed_users', self::DEFAULT_ALLOWED_USERS);
+	Option::set($this->MODULE_ID, 'report_email', self::DEFAULT_REPORT_EMAIL);
 }
 ```
+
+Обратная сторона: настройка в файле переустановку переживает, а **распаковку
+архива поверх — нет**. Что правит заказчик на сервере, должно лежать и в
+репозитории, иначе следующая поставка вернёт прежнее значение.
 
 **`DoUninstall()` обязан убирать за собой** — `UnRegisterModule`,
 `UnInstallEvents`. Модуль, который не удаляется чисто, нельзя переставить.
