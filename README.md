@@ -1,5 +1,7 @@
 # leadfinish
 
+[![CI](https://github.com/bx-shef/leadfinish/actions/workflows/ci.yml/badge.svg)](https://github.com/bx-shef/leadfinish/actions/workflows/ci.yml)
+
 Битрикс24 (коробка). В попапе завершения обработки лида менеджер выбирает **уже
 существующую** сделку вместо создания новой.
 
@@ -16,24 +18,30 @@
 | `docs/module-structure.md` | как устроен локальный модуль Битрикс24: именование, раскладка, грабли |
 | `docs/build-and-install.md` | сборка архива, установка на портал, приёмочный чек-лист |
 | `CONTRIBUTING.md` | ветки, коммиты, PR, чек-лист перед мержем |
+| `build.sh` | проверки и сборка `shef.leadfinish.zip` |
+| `.github/workflows/ci.yml` | те же проверки на каждый PR |
 
 Каталог модуля лежит в корне репозитория целиком и собирается как есть — поэтому
 `README.md` и `CLAUDE.md` самого модуля уезжают в поставку вместе с кодом.
 
 ## Сборка поставки
 
-Из корня репозитория, подробности — в [`docs/build-and-install.md`](docs/build-and-install.md):
+Из корня репозитория:
 
 ```bash
-find shef.leadfinish -name '*.php' -print0 | xargs -0 -n1 php -l
-node --check shef.leadfinish/js/lead-finish-button.js
-
-zip -rq shef.leadfinish.zip shef.leadfinish -x '*.DS_Store' '*/.git/*'
-unzip -l shef.leadfinish.zip | head    # первым уровнем должен быть shef.leadfinish/
+./build.sh           # проверки + shef.leadfinish.zip
+./build.sh --check   # только проверки, без архива
 ```
 
+Скрипт делает `php -l` и `node --check`, ловит заглавные буквы в именах файлов
+`lib/` (ломают автозагрузку только на Linux), показывает версию модуля и
+проверяет, что внутри архива первым уровнем лежит `shef.leadfinish/`. Ровно то же
+гоняется в CI на каждый PR — собранный архив прикладывается к прогону, его можно
+скачать и поставить на портал, не собирая руками.
+
 Дальше архив распаковывается в `/home/bitrix/www/local/modules/`, модуль ставится
-через **Marketplace → Установленные решения**.
+через **Marketplace → Установленные решения** — подробности и ручные команды в
+[`docs/build-and-install.md`](docs/build-and-install.md).
 
 Версия — в `shef.leadfinish/install/version.php`, поднимается при каждом
 изменении поведения.
