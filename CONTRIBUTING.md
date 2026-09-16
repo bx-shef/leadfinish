@@ -6,13 +6,13 @@
 
 ## Ветки
 
-- **В `master` напрямую не пушим никогда.**
+- **В `main` напрямую не пушим никогда.**
 - Вся работа ведётся в отдельной ветке, изменения вносятся через Pull Request.
 - Имя ветки — по смыслу задачи: `feat/lock-screen`, `fix/money-nbsp`,
   `docs/module-structure`.
 
 ```bash
-git checkout master && git pull origin master
+git checkout main && git pull origin main
 git checkout -b feat/lock-screen
 git push -u origin feat/lock-screen
 ```
@@ -85,7 +85,7 @@ CCrmCurrency::MoneyToString() делает strip_tags, но &nbsp; оставл�
 
 ## Проверка перед мержем
 
-1. Забрать изменения из `master` и убедиться, что **нет конфликтов**.
+1. Забрать изменения из `main` и убедиться, что **нет конфликтов**.
 2. **CI зелёный.** Красный CI — не повод мержить «потом починим».
 3. Синтаксис: `php -l` по всем PHP, `node --check` по JS — локально это
    `./build.sh --check`, то же самое делает CI.
