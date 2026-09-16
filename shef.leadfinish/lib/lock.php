@@ -60,7 +60,7 @@ class Lock
 	/**
 	 * Разобранное расписание из `.settings.php`.
 	 *
-	 * @return array{soft_from: ?string, hard_from: ?string, off: bool, users: ?int[]}
+	 * @return array{soft_from: ?string, hard_from: ?string, off: bool, users: int[]|null}
 	 */
 	public static function schedule(): array
 	{
@@ -71,7 +71,7 @@ class Lock
 			'soft_from' => self::validDayKey($raw['soft_from'] ?? null),
 			'hard_from' => self::validDayKey($raw['hard_from'] ?? null),
 			'off' => self::truthy($raw['off'] ?? null),
-			'users' => self::userIds($raw['users'] ?? null),
+			'users' => UserList::parse($raw['users'] ?? null),
 		];
 	}
 
@@ -171,8 +171,8 @@ class Lock
 	 *
 	 * ⚠ Заданный, но нечитаемый список («abc») приходит сюда пустым массивом — и
 	 * это НЕ повод приостановить всем: опечатка в настройке не должна запирать
-	 * портал. Именно поэтому `userIds()` разводит «пусто» и «мусор», а не
-	 * возвращает пустой массив в обоих случаях.
+	 * портал. Именно поэтому `UserList::parse()` разводит «пусто» и «нечитаемо»,
+	 * а не возвращает пустой массив в обоих случаях.
 	 */
 	private static function appliesToCurrentUser(?array $users): bool
 	{
@@ -189,55 +189,6 @@ class Lock
 		}
 
 		return in_array((int)$USER->GetID(), $users, true);
-	}
-
-	/**
-	 * ID из настройки `users`.
-	 *
-	 * ⚠ `null` и пустой массив здесь значат разное, и склеивать их нельзя:
-	 * `null` — списка нет или он пуст, приостановка касается всех; пустой массив
-	 * — список задан, но читаемых ID в нём нет, и тогда не касается никого.
-	 * Пока оба случая давали один пустой массив, опечатка в `users`
-	 * приостанавливала доработку всему порталу — против инварианта модуля
-	 * «ошибка в настройках уводит в сторону работающей доработки».
-	 *
-	 * ⚠ Скаляр (`'users' => 562`) списком не считается: одиночный ID пишется
-	 * массивом `[562]` или строкой `'562'`.
-	 *
-	 * Access::isAllowedUser() разбирает свой список похоже, но трактует иначе:
-	 * там отсутствие настройки значит «никому», а не «всем». Разница намеренная
-	 * — сравни докблоки, прежде чем объединять.
-	 *
-	 * @return int[]|null
-	 */
-	private static function userIds($raw): ?array
-	{
-		if ($raw === null)
-		{
-			return null;
-		}
-
-		if (is_string($raw))
-		{
-			if (trim($raw) === '')
-			{
-				return null;
-			}
-
-			$raw = explode(',', $raw);
-		}
-
-		if (!is_array($raw))
-		{
-			return [];
-		}
-
-		if ($raw === [])
-		{
-			return null;
-		}
-
-		return array_values(array_filter(array_map('intval', $raw)));
 	}
 
 	/**

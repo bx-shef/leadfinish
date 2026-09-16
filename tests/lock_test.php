@@ -50,6 +50,7 @@ class UserStub
 	}
 }
 
+require __DIR__ . '/../shef.leadfinish/lib/userlist.php';
 require __DIR__ . '/../shef.leadfinish/lib/access.php';
 require __DIR__ . '/../shef.leadfinish/lib/lock.php';
 
@@ -99,6 +100,23 @@ check('список строкой, свой', Lock::STAGE_HARD, stage($always +
 check('мусор списком — никого', Lock::STAGE_NONE, stage($always + ['users' => ['abc']]));
 check('мусор строкой — никого', Lock::STAGE_NONE, stage($always + ['users' => 'abc']));
 check('скаляр вместо списка — никого', Lock::STAGE_NONE, stage($always + ['users' => 562]));
+
+// ⚠ Опечатка не должна превращаться в ЧУЖОЙ ID: intval([562]) молча даёт 1,
+// intval('5 62') — 5, и приостановка доставалась бы постороннему.
+check('лишняя скобка [[562]] — не трогает пользователя 1', Lock::STAGE_NONE,
+	stage($always + ['users' => [[562]]], 1));
+check('лишняя скобка [[562]] — не трогает и 562', Lock::STAGE_NONE,
+	stage($always + ['users' => [[562]]], 562));
+check('пробел вместо запятой — не трогает пользователя 5', Lock::STAGE_NONE,
+	stage($always + ['users' => '5 62'], 5));
+check('true вместо ID — не трогает пользователя 1', Lock::STAGE_NONE,
+	stage($always + ['users' => [true]], 1));
+check('хвост после числа — не трогает 562', Lock::STAGE_NONE,
+	stage($always + ['users' => '562abc'], 562));
+check('мусор рядом с годным ID — годный работает', Lock::STAGE_HARD,
+	stage($always + ['users' => ['562', 'abc']], 562));
+check('пробелы вокруг ID', Lock::STAGE_HARD,
+	stage($always + ['users' => [' 562 ']], 562));
 check('ноль не пользователь', Lock::STAGE_NONE, stage($always + ['users' => [0]]));
 check('неавторизованный', Lock::STAGE_NONE, stage($always, 562, false));
 
