@@ -1,5 +1,5 @@
 {
-    "name": "shef/leadfinish",
+    "name": "bxshef/leadfinish",
     "description": "Битрикс24 (коробка): завершение обработки лида привязкой уже существующей сделки вместо создания новой",
     "type": "bitrix-d7-module",
     "license": "MIT",

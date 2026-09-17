@@ -1,6 +1,6 @@
 # [SH-local] Своя кнопка завершения лида (`shef.leadfinish`)
 
-[![CI](https://github.com/bx-shef/leadfinish/actions/workflows/ci.yml/badge.svg)](https://github.com/bx-shef/leadfinish/actions/workflows/ci.yml) [![Packagist](https://img.shields.io/packagist/v/shef/leadfinish?label=composer)](https://packagist.org/packages/shef/leadfinish) ![Bitrix24 self-hosted](https://img.shields.io/badge/Made%20for-%D0%91%D0%B8%D1%82%D1%80%D0%B8%D0%BA%D1%8124%20%D0%9A%D0%BE%D1%80%D0%BE%D0%B1%D0%BE%D1%87%D0%BD%D0%B0%D1%8F%20%D0%B2%D0%B5%D1%80%D1%81%D0%B8%D1%8F-f0f4ff?logo=bitrix24&labelColor=020420)
+[![CI](https://github.com/bx-shef/leadfinish/actions/workflows/ci.yml/badge.svg)](https://github.com/bx-shef/leadfinish/actions/workflows/ci.yml) [![Packagist](https://img.shields.io/packagist/v/bxshef/leadfinish?label=composer)](https://packagist.org/packages/bxshef/leadfinish) ![Bitrix24 self-hosted](https://img.shields.io/badge/Made%20for-%D0%91%D0%B8%D1%82%D1%80%D0%B8%D0%BA%D1%8124%20%D0%9A%D0%BE%D1%80%D0%BE%D0%B1%D0%BE%D1%87%D0%BD%D0%B0%D1%8F%20%D0%B2%D0%B5%D1%80%D1%81%D0%B8%D1%8F-f0f4ff?logo=bitrix24&labelColor=020420)
 
 Модуль для Битрикс24. Позволяет завершить обработку лида, привязав к нему
 **уже существующую** сделку, — вместо штатного создания новой.
@@ -133,7 +133,7 @@ chown -R bitrix:bitrix shef.leadfinish
 {
     "extra": {
         "installer-paths": {
-            "local/modules/shef.leadfinish/": ["shef/leadfinish"]
+            "local/modules/shef.leadfinish/": ["bxshef/leadfinish"]
         }
     }
 }
@@ -142,13 +142,19 @@ chown -R bitrix:bitrix shef.leadfinish
 Затем:
 
 ```bash
-composer require shef/leadfinish
+composer require bxshef/leadfinish
 ```
 
-⚠ **Без `installer-paths` модуль уедет не туда.** Тип пакета `bitrix-d7-module`
-по умолчанию ставится в `bitrix/modules/`, то есть в каталог поставки платформы,
-который перетирает её обновление. Строка выше перенаправляет его в
-`local/modules/`.
+⚠ **Без `installer-paths` модуль уедет не туда, и дважды.** Тип пакета
+`bitrix-d7-module` по умолчанию кладёт его в `bitrix/modules/bxshef.leadfinish/`:
+
+- `bitrix/modules/` — каталог поставки платформы, который перетирает её
+  обновление; локальным модулям туда нельзя;
+- имя каталога собирается как `{вендор}.{пакет}`, то есть `bxshef.leadfinish`, а
+  Битрикс ищет каталог строго по ID модуля — `shef.leadfinish`. Не совпало —
+  модуль не заработает.
+
+Строка выше чинит оба места сразу, поэтому она обязательна, а не желательна.
 
 ### 3. Вписать ID в `.settings.php`
 
@@ -202,7 +208,7 @@ Composer только раскладывает файлы — этот шаг о
 
 ```bash
 unzip -o shef.leadfinish.zip      # архивом
-composer update shef/leadfinish   # либо Composer'ом
+composer update bxshef/leadfinish   # либо Composer'ом
 ```
 
 ⚠ **И то и другое перетирает `.settings.php`** вместе со списком `allowed_users`
