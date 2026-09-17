@@ -63,24 +63,31 @@ unzip -l shef.leadfinish.zip | head    # проверить первый уро�
 
 ## Установка через Composer
 
-Альтернатива архиву. Пакет — `shef/leadfinish`, тип `bitrix-d7-module`.
+Альтернатива архиву. Пакет — `bxshef/leadfinish`, тип `bitrix-d7-module`.
 
 В `composer.json` проекта **обязательно** переопределить путь:
 
 ```json
 "extra": {
     "installer-paths": {
-        "local/modules/shef.leadfinish/": ["shef/leadfinish"]
+        "local/modules/shef.leadfinish/": ["bxshef/leadfinish"]
     }
 }
 ```
 
 Без этого `composer/installers` положит модуль по умолчанию в
-`bitrix/modules/shef.leadfinish/` — в каталог поставки платформы, который
-перетирается обновлением. Туда локальным модулям нельзя.
+`bitrix/modules/bxshef.leadfinish/` — и это неверно дважды:
+
+- `bitrix/modules/` — каталог поставки платформы, который перетирается
+  обновлением; локальным модулям туда нельзя;
+- имя каталога у типа `bitrix-d7-module` собирается как `{vendor}.{name}`, то
+  есть `bxshef.leadfinish`, а Битрикс ищет каталог строго по ID модуля —
+  `shef.leadfinish`. Не совпало — модуль не заработает.
+
+`installer-paths` закрывает оба вопроса разом, поэтому строка обязательна.
 
 ```bash
-composer require shef/leadfinish
+composer require bxshef/leadfinish
 ```
 
 Composer только раскладывает файлы: регистрация модуля в системе всё равно через
