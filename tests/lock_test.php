@@ -161,6 +161,19 @@ check('неизвестная ступень игнорируется', Lock::ST
 check('обход не действует на чужого', Lock::STAGE_NONE,
 	stage(['hard_from' => FUTURE, 'users' => [562]], 44, true, 'hard'));
 
+// ⚠ Рубильник «оформлено» гасит и обход. Иначе старая ссылка с ?lock=hard из
+// переписки вернула бы экран приостановки после оформленной приёмки, а сервер
+// в этот момент действие разрешает — фронт и сервер разошлись бы.
+check('рубильник гасит обход', Lock::STAGE_NONE,
+	stage(['off' => true], 562, true, 'hard'));
+check('рубильник гасит обход и при прошедшей дате', Lock::STAGE_NONE,
+	stage(['hard_from' => PAST, 'off' => true], 562, true, 'hard'));
+check('рубильник гасит и мягкий обход', Lock::STAGE_NONE,
+	stage(['off' => true], 562, true, 'soft'));
+// Мусор в off выключателем не считается — обход работает как обычно.
+check('мусор в off обход не гасит', Lock::STAGE_HARD,
+	stage(['off' => 'потом'], 562, true, 'hard'));
+
 if ($failed > 0)
 {
 	printf("lock_test: провалов %d\n", $failed);
