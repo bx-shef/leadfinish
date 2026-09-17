@@ -4,8 +4,8 @@
  * Кому доступна кастомизация: матрица решений Access::isAllowedUser().
  *
  * Рантайма Битрикса тут нет — ядро подменено заглушками, поэтому проверяется
- * настоящий класс, а не его копия. Всё остальное в модуле завязано на рантайм
- * и ловится приёмочным чек-листом из shef.leadfinish/CLAUDE.md.
+ * настоящий класс, а не его копия. Всё остальное завязано на рантайм
+ * и ловится приёмочным чек-листом из CLAUDE.md.
  *
  * Запуск: php tests/access_test.php (или ./build.sh --check).
  */
@@ -50,8 +50,8 @@ class UserStub
 	}
 }
 
-require __DIR__ . '/../shef.leadfinish/lib/userlist.php';
-require __DIR__ . '/../shef.leadfinish/lib/access.php';
+require __DIR__ . '/../lib/userlist.php';
+require __DIR__ . '/../lib/access.php';
 
 /** [описание, значение allowed_users или NOT_SET, ID пользователя, ожидание] */
 const NOT_SET = '__ключа нет__';

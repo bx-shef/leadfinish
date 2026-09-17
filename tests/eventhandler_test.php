@@ -14,9 +14,9 @@ namespace Test;
 use ReflectionMethod;
 use Shef\LeadFinish\EventHandler;
 
-require __DIR__ . '/../shef.leadfinish/lib/userlist.php';
-require __DIR__ . '/../shef.leadfinish/lib/access.php';
-require __DIR__ . '/../shef.leadfinish/lib/eventhandler.php';
+require __DIR__ . '/../lib/userlist.php';
+require __DIR__ . '/../lib/access.php';
+require __DIR__ . '/../lib/eventhandler.php';
 
 $matches = new ReflectionMethod(EventHandler::class, 'matchesLeadPath');
 $matches->setAccessible(true);

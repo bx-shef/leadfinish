@@ -1,0 +1,19 @@
+# Что не уезжает в поставку.
+#
+# Файлы модуля лежат в корне репозитория — этого требует Composer, который
+# разворачивает в целевой каталог корень пакета целиком. Всё остальное нужно
+# отсечь здесь: `git archive` соблюдает export-ignore, и на нём же основан
+# dist-архив, который Composer скачивает с GitHub.
+#
+# ⚠ Список обязан совпадать с KEEP в build.sh. Там сборка архива, здесь —
+# установка через Composer; разойдутся — и на портал уедет разное в зависимости
+# от способа установки.
+
+/.editorconfig    export-ignore
+/.gitattributes   export-ignore
+/.github          export-ignore
+/.gitignore       export-ignore
+/CONTRIBUTING.md  export-ignore
+/build.sh         export-ignore
+/docs             export-ignore
+/tests            export-ignore
