@@ -25,7 +25,7 @@ class Access
 	 *
 	 * - ключа НЕТ вовсе — доработка не настроена, доступа нет ни у кого;
 	 * - список пуст — доступ у всех авторизованных;
-	 * - список задан, но разобрать нечего («abc») — снова ни у кого.
+	 * - список задан, но читаемых ID в нём нет («abc») — снова ни у кого.
 	 *
 	 * Разошлись они намеренно. «Нет ключа» — это, как правило, частичное
 	 * обновление: распаковали `lib/`, а `.settings.php` на сервере остался
@@ -49,50 +49,14 @@ class Access
 			return false;
 		}
 
-		if (self::isEmptyList($raw))
+		$ids = UserList::parse($raw);
+
+		// Список пуст — доступ у всех авторизованных.
+		if ($ids === null)
 		{
 			return true;
 		}
 
-		return in_array((int)$USER->GetID(), self::userIds($raw), true);
-	}
-
-	/**
-	 * Настройка есть, но пуста.
-	 *
-	 * Пробелы считаем пустотой: `'  '` в файле — это стёртый список, а не список
-	 * из одного пробела.
-	 */
-	private static function isEmptyList($raw): bool
-	{
-		if (is_string($raw))
-		{
-			return trim($raw) === '';
-		}
-
-		return is_array($raw) && $raw === [];
-	}
-
-	/**
-	 * ID из настройки: и списком, и строкой через запятую.
-	 *
-	 * Строку принимаем потому, что файл правят руками, и `'44,562'` — первое,
-	 * что там напишут.
-	 *
-	 * @return int[]
-	 */
-	private static function userIds($raw): array
-	{
-		if (is_string($raw))
-		{
-			$raw = explode(',', $raw);
-		}
-
-		if (!is_array($raw))
-		{
-			return [];
-		}
-
-		return array_values(array_filter(array_map('intval', $raw)));
+		return in_array((int)$USER->GetID(), $ids, true);
 	}
 }

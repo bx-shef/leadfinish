@@ -60,7 +60,7 @@ class Lock
 	/**
 	 * Разобранное расписание из `.settings.php`.
 	 *
-	 * @return array{soft_from: ?string, hard_from: ?string, off: bool, users: int[]}
+	 * @return array{soft_from: ?string, hard_from: ?string, off: bool, users: int[]|null}
 	 */
 	public static function schedule(): array
 	{
@@ -71,7 +71,7 @@ class Lock
 			'soft_from' => self::validDayKey($raw['soft_from'] ?? null),
 			'hard_from' => self::validDayKey($raw['hard_from'] ?? null),
 			'off' => self::truthy($raw['off'] ?? null),
-			'users' => self::userIds($raw['users'] ?? null),
+			'users' => UserList::parse($raw['users'] ?? null),
 		];
 	}
 
@@ -166,10 +166,15 @@ class Lock
 	/**
 	 * Приостановка касается текущего пользователя.
 	 *
-	 * Пустой список — всех. Список из одного мусора даёт пустой массив ID, и это
-	 * НЕ повод приостановить всем: опечатка в настройке не должна запирать портал.
+	 * `null` — списка нет или он пуст, и тогда приостановка касается всех, у кого
+	 * доработка включена.
+	 *
+	 * ⚠ Заданный, но нечитаемый список («abc») приходит сюда пустым массивом — и
+	 * это НЕ повод приостановить всем: опечатка в настройке не должна запирать
+	 * портал. Именно поэтому `UserList::parse()` разводит «пусто» и «нечитаемо»,
+	 * а не возвращает пустой массив в обоих случаях.
 	 */
-	private static function appliesToCurrentUser(array $users): bool
+	private static function appliesToCurrentUser(?array $users): bool
 	{
 		global $USER;
 
@@ -178,23 +183,12 @@ class Lock
 			return false;
 		}
 
-		return $users === [] || in_array((int)$USER->GetID(), $users, true);
-	}
-
-	/** @return int[] */
-	private static function userIds($raw): array
-	{
-		if (is_string($raw))
+		if ($users === null)
 		{
-			$raw = explode(',', $raw);
+			return true;
 		}
 
-		if (!is_array($raw))
-		{
-			return [];
-		}
-
-		return array_values(array_filter(array_map('intval', $raw)));
+		return in_array((int)$USER->GetID(), $users, true);
 	}
 
 	/**
