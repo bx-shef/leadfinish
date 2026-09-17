@@ -8,6 +8,11 @@
 #   ./build.sh --version  напечатать версию модуля и выйти
 #
 # Подробности и установка на портал — docs/build-and-install.md.
+#
+# ⚠ Файлы модуля лежат в КОРНЕ репозитория: этого требует Composer, который
+# разворачивает в целевой каталог корень пакета целиком. Поэтому здесь два
+# списка — что уезжает на портал и что остаётся для разработки, — а всё, что не
+# попало ни в один, роняет сборку. Молча уехать на портал не должно ничего.
 
 set -euo pipefail
 
@@ -15,6 +20,37 @@ MODULE='shef.leadfinish'
 ARCHIVE="${MODULE}.zip"
 
 cd "$(dirname "$0")"
+
+# Что уезжает на портал. Добавил файл модуля — впиши сюда, иначе на портале его
+# не окажется.
+SHIP=(
+	'.settings.php'
+	'CLAUDE.md'
+	'LICENSE'
+	'README.md'
+	'composer.json'
+	'css'
+	'include.php'
+	'install'
+	'js'
+	'lang'
+	'lib'
+)
+
+# Что остаётся в репозитории. Добавил файл для разработки — впиши сюда, иначе
+# сборка упадёт и подскажет.
+KEEP=(
+	'.editorconfig'
+	'.git'
+	'.gitattributes'
+	'.github'
+	'.gitignore'
+	'CONTRIBUTING.md'
+	'build.sh'
+	'docs'
+	'tests'
+	"$ARCHIVE"
+)
 
 CHECK_ONLY=false
 PRINT_VERSION=false
@@ -40,13 +76,13 @@ step()
 	echo "==> $*"
 }
 
-[ -d "$MODULE" ] || fail "каталог $MODULE/ не найден — запускай из корня репозитория"
+[ -f install/version.php ] || fail 'нет install/version.php — запускай из корня репозитория'
 
 # Версия модуля — единственный источник правды и для сборки, и для тега релиза.
 read_version()
 {
 	php -r '
-		include "'"$MODULE"'/install/version.php";
+		include "install/version.php";
 		echo $arModuleVersion["VERSION"] ?? "";
 	'
 }
@@ -61,24 +97,45 @@ fi
 command -v php >/dev/null || fail 'нужен php в PATH'
 command -v node >/dev/null || fail 'нужен node в PATH'
 
+# --- Раскладка ---------------------------------------------------------------
+# Каждый элемент верхнего уровня обязан быть либо в поставке, либо в
+# разработке. Неизвестный — это забытое решение, а не мелочь: по умолчанию он
+# либо уедет на портал, либо потеряется в поставке.
+
+step 'раскладка верхнего уровня'
+unknown=''
+while IFS= read -r entry
+do
+	name="${entry#./}"
+	known=false
+
+	for item in "${SHIP[@]}" "${KEEP[@]}"
+	do
+		[ "$name" = "$item" ] && { known=true; break; }
+	done
+
+	$known || unknown="${unknown}  ${name}"$'\n'
+done < <(find . -mindepth 1 -maxdepth 1)
+
+[ -z "$unknown" ] || fail "в корне лежит неизвестное — впиши в SHIP или KEEP в build.sh:"$'\n'"$unknown"
+
+for item in "${SHIP[@]}"
+do
+	[ -e "$item" ] || fail "в SHIP указан несуществующий $item"
+done
+
 # --- Синтаксис -------------------------------------------------------------
 # Минимум перед сборкой: иначе на портал уедет то, что даже не парсится.
 
-php_dirs=("$MODULE")
-if [ -d tests ]
-then
-	php_dirs+=(tests)
-fi
-
 step "синтаксис PHP ($(php -r 'echo PHP_VERSION;'))"
-find "${php_dirs[@]}" -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null \
+find . -name '*.php' -not -path './.git/*' -print0 | xargs -0 -n1 php -l >/dev/null \
 	|| fail 'php -l не прошёл'
 
 step "синтаксис JS ($(node --version))"
 while IFS= read -r -d '' js
 do
 	node --check "$js" || fail "node --check не прошёл: $js"
-done < <(find "$MODULE/js" -name '*.js' -print0)
+done < <(find js -name '*.js' -print0)
 
 # --- Автозагрузка ----------------------------------------------------------
 # Loader::registerNamespace ищет файл по имени класса в нижнем регистре.
@@ -86,13 +143,13 @@ done < <(find "$MODULE/js" -name '*.js' -print0)
 # всё «работает», поэтому проверяем здесь.
 
 step 'имена файлов в lib/ в нижнем регистре'
-upper=$(find "$MODULE/lib" -type f | LC_ALL=C grep '[A-Z]' || true)
+upper=$(find lib -type f | LC_ALL=C grep '[A-Z]' || true)
 [ -z "$upper" ] || fail "заглавные буквы в путях lib/:"$'\n'"$upper"
 
 # --- Тесты -----------------------------------------------------------------
 # Здесь только то, что проверяется без рантайма Битрикса: разбор настроек,
 # нормализация, матрицы решений. Всё остальное ловит приёмочный чек-лист из
-# shef.leadfinish/CLAUDE.md — заменить его тестами нельзя, а дополнить нужно.
+# CLAUDE.md — заменить его тестами нельзя, а дополнить нужно.
 
 step 'тесты чистой логики'
 shopt -s nullglob
@@ -125,16 +182,36 @@ fi
 
 # --- Архив -----------------------------------------------------------------
 # Внутри zip первым уровнем должен лежать каталог модуля целиком, иначе при
-# распаковке файлы рассыплются по /local/modules/.
+# распаковке файлы рассыплются по /local/modules/. В репозитории такого каталога
+# нет — собираем его во временном месте из списка SHIP.
+
+command -v zip >/dev/null || fail 'нужен zip в PATH'
 
 step "сборка $ARCHIVE"
 rm -f "$ARCHIVE"
-zip -rq "$ARCHIVE" "$MODULE" \
-	-x '*.DS_Store' '*/.git/*' '*/node_modules/*' '*.min.js' '*.map'
+
+root=$(pwd)
+staging=$(mktemp -d)
+trap 'rm -rf "$staging"' EXIT
+
+mkdir "${staging}/${MODULE}"
+for item in "${SHIP[@]}"
+do
+	cp -R "$item" "${staging}/${MODULE}/"
+done
+
+(cd "$staging" && zip -rq "${root}/${ARCHIVE}" "$MODULE" -x '*.DS_Store' '*.min.js' '*.map')
 
 step 'проверка первого уровня в архиве'
 stray=$(unzip -Z1 "$ARCHIVE" | grep -v "^${MODULE}/" || true)
 [ -z "$stray" ] || fail "в архиве есть файлы вне ${MODULE}/:"$'\n'"$stray"
+
+for item in "${KEEP[@]}"
+do
+	case "$item" in .git|"$ARCHIVE") continue ;; esac
+	unzip -Z1 "$ARCHIVE" | grep -q "^${MODULE}/${item}" \
+		&& fail "в архив попало то, что должно остаться в репозитории: ${item}"
+done
 
 files=$(unzip -Z1 "$ARCHIVE" | grep -vc '/$' || true)
 echo

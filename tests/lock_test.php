@@ -50,9 +50,9 @@ class UserStub
 	}
 }
 
-require __DIR__ . '/../shef.leadfinish/lib/userlist.php';
-require __DIR__ . '/../shef.leadfinish/lib/access.php';
-require __DIR__ . '/../shef.leadfinish/lib/lock.php';
+require __DIR__ . '/../lib/userlist.php';
+require __DIR__ . '/../lib/access.php';
+require __DIR__ . '/../lib/lock.php';
 
 const PAST = '2000-01-01';
 const FUTURE = '2999-01-01';

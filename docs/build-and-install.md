@@ -33,18 +33,64 @@ $arModuleVersion = [
 уровнем должен лежать `shef.leadfinish/` — иначе при распаковке файлы рассыплются
 по `/local/modules/`.
 
+⚠ В `shef.leadfinish` такого каталога в репозитории **нет**: файлы модуля лежат в
+корне, потому что Composer разворачивает в целевой каталог корень пакета целиком.
+Значит каталог для архива надо собрать, а не заархивировать готовый:
+
 ```bash
-cd <каталог, где лежит shef.leadfinish>
+staging=$(mktemp -d)
+mkdir "$staging/shef.leadfinish"
+cp -R .settings.php include.php install lang lib js css \
+      README.md CLAUDE.md LICENSE composer.json "$staging/shef.leadfinish/"
+
 rm -f shef.leadfinish.zip
-zip -rq shef.leadfinish.zip shef.leadfinish -x '*.DS_Store' '*/.git/*'
+(cd "$staging" && zip -rq "$OLDPWD/shef.leadfinish.zip" shef.leadfinish)
+rm -rf "$staging"
+
 unzip -l shef.leadfinish.zip | head    # проверить первый уровень
 ```
 
 Проверка глазами обязательна: список должен начинаться с
 `shef.leadfinish/...`, а не с `install/...`.
 
-Что **не кладём** в архив: `.git/`, `node_modules/`, `*.min.js`/`*.map`,
-редакторский мусор.
+Что **не кладём** в архив: `tests/`, `docs/`, `build.sh`, `CONTRIBUTING.md`,
+`.github/`, `.git/`, `*.min.js`/`*.map`, редакторский мусор.
+
+`./build.sh` делает это сам и вдобавок проверяет, что в корне не завелось
+ничего, о чём не решено, куда оно едет: каждый элемент верхнего уровня обязан
+быть перечислен либо в `SHIP`, либо в `KEEP`. Неизвестный роняет сборку — иначе
+новый файл однажды уехал бы на портал молча.
+
+## Установка через Composer
+
+Альтернатива архиву. Пакет — `shef/leadfinish`, тип `bitrix-d7-module`.
+
+В `composer.json` проекта **обязательно** переопределить путь:
+
+```json
+"extra": {
+    "installer-paths": {
+        "local/modules/shef.leadfinish/": ["shef/leadfinish"]
+    }
+}
+```
+
+Без этого `composer/installers` положит модуль по умолчанию в
+`bitrix/modules/shef.leadfinish/` — в каталог поставки платформы, который
+перетирается обновлением. Туда локальным модулям нельзя.
+
+```bash
+composer require shef/leadfinish
+```
+
+Composer только раскладывает файлы: регистрация модуля в системе всё равно через
+**Marketplace → Установленные решения** либо
+`\Bitrix\Main\ModuleManager::registerModule('shef.leadfinish')`.
+
+Что уедет в пакет, решает `export-ignore` в `.gitattributes`: GitHub собирает
+dist-архив через `git archive`, а тот его соблюдает. ⚠ Список обязан совпадать с
+`KEEP` в `build.sh` — разойдутся, и на портал попадёт разное в зависимости от
+способа установки.
 
 ## Релиз вместо пересылки архива
 

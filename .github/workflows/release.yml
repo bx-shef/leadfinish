@@ -46,7 +46,7 @@ jobs:
           then
             if [ "${GITHUB_REF_NAME#v}" != "$version" ]
             then
-              echo "::error::Тег ${GITHUB_REF_NAME} не совпадает с VERSION=${version} в shef.leadfinish/install/version.php"
+              echo "::error::Тег ${GITHUB_REF_NAME} не совпадает с VERSION=${version} в install/version.php"
               echo "::error::Либо поднимите VERSION, либо поставьте тег v${version}"
               exit 1
             fi
@@ -78,7 +78,7 @@ jobs:
         run: |
           if git ls-remote --exit-code --tags origin "$TAG" >/dev/null 2>&1
           then
-            echo "::error::Тег ${TAG} уже существует — поднимите VERSION в shef.leadfinish/install/version.php"
+            echo "::error::Тег ${TAG} уже существует — поднимите VERSION в install/version.php"
             exit 1
           fi
 
