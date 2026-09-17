@@ -14,6 +14,11 @@
  *   - id попапа                 = `${controlId}_TERMINATION`;
  *   - id обёртки зелёной кнопки = (`${controlId}_success_btn_wrapper`).toLowerCase().
  * Обе завязки — на суффикс id, поэтому переименование контрола ничего не ломает.
+ *
+ * Работает и в карточке лида, и в списке: попап там один и тот же. Отличие лишь
+ * в том, откуда брать ID лида и нужно ли обновлять таблицу после привязки — см.
+ * getLeadId() и reloadGrid(). Канбан сюда не входит: там другое окно, см.
+ * EventHandler::matchesLeadPath().
  */
 ;(function () {
 	'use strict';
@@ -51,11 +56,63 @@
 		console.log.apply(console, args);
 	}
 
-	function getLeadId()
+	/**
+	 * ID лида: сначала из id попапа, и только потом из адреса страницы.
+	 *
+	 * Ядро строит id контрола как `{ПРЕФИКС}LEAD_{id}` и добавляет `_TERMINATION`
+	 * для попапа. Это работает всюду, где есть прогресс-бар, — в том числе в
+	 * списке лидов, где в адресе никакого id нет и прежний разбор пути давал 0.
+	 *
+	 * Адрес оставлен запасным путём: на карточке прогресс-бар рисует редактор
+	 * сущности, а не шаблон списка, и формат его id может отличаться. Порядок
+	 * «попап, потом адрес» менять не надо — он и делает разбор переносимым.
+	 */
+	function getLeadId(popup)
 	{
-		var match = String(location.pathname).match(/\/crm\/lead\/(?:details|show)\/(\d+)\//);
+		var popupId = popup && typeof popup.getId === 'function' ? String(popup.getId()) : '';
+		var fromPopup = popupId.match(/_LEAD_(\d+)_TERMINATION$/i);
 
-		return match ? parseInt(match[1], 10) : 0;
+		if (fromPopup)
+		{
+			return parseInt(fromPopup[1], 10);
+		}
+
+		var fromPath = String(location.pathname).match(/\/crm\/lead\/(?:details|show)\/(\d+)\//);
+
+		return fromPath ? parseInt(fromPath[1], 10) : 0;
+	}
+
+	/**
+	 * Перечитать таблицу списка, если подбор открыли оттуда.
+	 *
+	 * В карточке обновлять нечего: после привязки открывается слайдер сделки, а
+	 * лид перечитается сам. В списке же строка осталась бы в прежней стадии до
+	 * ручной перезагрузки страницы — менеджер увидел бы «не сработало».
+	 *
+	 * ID грида выводится из id попапа: шаблон списка задаёт прогресс-бару префикс
+	 * `{GRID_ID}_PROGRESS_BAR_` (crm.lead.list/templates/.default/template.php).
+	 * Не нашли грид — значит подбор открыт не из списка, и это норма.
+	 */
+	function reloadGrid(terminationPopup)
+	{
+		var popupId = terminationPopup && typeof terminationPopup.getId === 'function'
+			? String(terminationPopup.getId())
+			: '';
+		var match = popupId.match(/^(.+)_PROGRESS_BAR_LEAD_\d+_TERMINATION$/i);
+
+		if (!match || !BX.Main || !BX.Main.gridManager)
+		{
+			return;
+		}
+
+		var entry = BX.Main.gridManager.getById(match[1]);
+		var grid = entry ? entry.instance : null;
+
+		if (grid && typeof grid.reloadTable === 'function')
+		{
+			log('обновляю список ' + match[1]);
+			grid.reloadTable();
+		}
 	}
 
 	/** Слайдер живёт в верхнем окне: карточка часто сама открыта в слайдере. */
@@ -648,6 +705,12 @@
 					log('привязано', data);
 
 					this.closeAll();
+
+					// Список сам о привязке не узнает: строка осталась бы в
+					// прежней стадии до перезагрузки страницы. В карточке этот
+					// вызов ничего не находит и тихо выходит.
+					reloadGrid(this.terminationPopup);
+
 					notify('Лид завершён, сделка «' + (data.dealTitle || '') + '» привязана');
 					openSlider(data.dealUrl || ('/crm/deal/details/' + this.selected.id + '/'));
 				}.bind(this))
@@ -763,7 +826,7 @@
 		}
 
 		var context = {
-			leadId: getLeadId(),
+			leadId: getLeadId(popup),
 			popup: popup,
 			originalButton: original
 		};
