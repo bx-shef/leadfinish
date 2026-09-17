@@ -16,8 +16,10 @@ class EventHandler
 	 * Обработчик main::OnEpilog.
 	 *
 	 * Скрипт вешает глобальный слушатель события попапов, поэтому подключаем его
-	 * узко: только там, где он может понадобиться, и только тем, кому кнопка
-	 * предназначена. Иначе слушатель висел бы на каждой странице портала.
+	 * узко: только там, где попап завершения существует, и только тем, кому
+	 * кнопка предназначена. Иначе слушатель висел бы на каждой странице портала.
+	 *
+	 * Список страниц — в `matchesLeadPath()`.
 	 */
 	public static function onEpilog(): void
 	{
@@ -56,13 +58,36 @@ class EventHandler
 	}
 
 	/**
-	 * Детальная карточка лида — и обычная, и открытая в слайдере.
+	 * Страница, на которой попап завершения обработки лида вообще существует.
 	 */
 	private static function isLeadPage(): bool
 	{
 		$request = Application::getInstance()->getContext()->getRequest();
 		$path = (string)parse_url((string)$request->getRequestUri(), PHP_URL_PATH);
 
-		return (bool)preg_match('#^/crm/lead/(details|show)/\d+/#', $path);
+		return self::matchesLeadPath($path);
+	}
+
+	/**
+	 * Путь страницы — из тех, где ядро рисует прогресс-бар лида.
+	 *
+	 * Это карточка (обычная и открытая в слайдере) и список: попап завершения
+	 * ядро строит в обоих местах одинаково, через
+	 * `CCrmViewHelper::RenderProgressControl()`.
+	 *
+	 * ⚠ Канбан этой доработкой не поддержан. Окно выбора там устроено иначе —
+	 * `kanban_column_popup`: ни `_TERMINATION` в id, ни обёртки зелёной кнопки в
+	 * нём нет, а лид берётся из состояния `BX.Crm.KanbanComponent`. Если скрипт
+	 * и окажется на такой странице, слушатель просто ничего не найдёт и кнопка
+	 * не подменится — это безопасно, но и пользы не принесёт. Поддержка канбана
+	 * — отдельная задача, здесь её нет.
+	 *
+	 * ⚠ Вынесено из `isLeadPage()` и не трогает запрос, чтобы правило
+	 * проверялось тестом — `tests/eventhandler_test.php`.
+	 */
+	private static function matchesLeadPath(string $path): bool
+	{
+		return (bool)preg_match('#^/crm/lead/(?:details|show)/\d+/#', $path)
+			|| (bool)preg_match('#^/crm/lead/list(?:/|$)#', $path);
 	}
 }
