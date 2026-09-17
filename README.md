@@ -1,6 +1,6 @@
 # leadfinish
 
-[![CI](https://github.com/bx-shef/leadfinish/actions/workflows/ci.yml/badge.svg)](https://github.com/bx-shef/leadfinish/actions/workflows/ci.yml)
+[![CI](https://github.com/bx-shef/leadfinish/actions/workflows/ci.yml/badge.svg)](https://github.com/bx-shef/leadfinish/actions/workflows/ci.yml) ![Bitrix24 self-hosted](https://img.shields.io/badge/Made%20for-%D0%91%D0%B8%D1%82%D1%80%D0%B8%D0%BA%D1%8124%20%D0%9A%D0%BE%D1%80%D0%BE%D0%B1%D0%BE%D1%87%D0%BD%D0%B0%D1%8F%20%D0%B2%D0%B5%D1%80%D1%81%D0%B8%D1%8F-f0f4ff?logo=bitrix24&labelColor=020420)
 
 Битрикс24 (коробка). В попапе завершения обработки лида менеджер выбирает **уже
 существующую** сделку вместо создания новой.
