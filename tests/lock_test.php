@@ -161,6 +161,66 @@ check('неизвестная ступень игнорируется', Lock::ST
 check('обход не действует на чужого', Lock::STAGE_NONE,
 	stage(['hard_from' => FUTURE, 'users' => [562]], 44, true, 'hard'));
 
+// ⚠ Рубильник «оформлено» гасит и обход. Иначе старая ссылка с ?lock=hard из
+// переписки вернула бы экран приостановки после оформленной приёмки, а сервер
+// в этот момент действие разрешает — фронт и сервер разошлись бы.
+check('рубильник гасит обход', Lock::STAGE_NONE,
+	stage(['off' => true], 562, true, 'hard'));
+check('рубильник гасит обход и при прошедшей дате', Lock::STAGE_NONE,
+	stage(['hard_from' => PAST, 'off' => true], 562, true, 'hard'));
+check('рубильник гасит и мягкий обход', Lock::STAGE_NONE,
+	stage(['off' => true], 562, true, 'soft'));
+// Мусор в off выключателем не считается — обход работает как обычно.
+check('мусор в off обход не гасит', Lock::STAGE_HARD,
+	stage(['off' => 'потом'], 562, true, 'hard'));
+
+// --- Данные для фронта ---------------------------------------------------
+// Обещание модуля менеджеру формулируется здесь: пустой массив — рисовать
+// нечего. Фронт проверяет config.lock && config.lock.stage, поэтому ранний
+// выход payload() и есть та самая «старая ссылка ничего не покажет».
+
+/** Данные для фронта при заданных настройках. */
+function payload(array $lock, int $userId = 562, ?string $override = null): array
+{
+	Configuration::$data = ['lock' => $lock];
+	$GLOBALS['USER'] = new UserStub($userId);
+
+	return Lock::payload($override);
+}
+
+function checkPayload(string $name, array $expected, array $got): void
+{
+	global $failed, $total;
+
+	$total++;
+
+	if ($got !== $expected)
+	{
+		$failed++;
+		printf("ПРОВАЛ: %s — получили %s, ждали %s\n",
+			$name,
+			json_encode($got, JSON_UNESCAPED_UNICODE),
+			json_encode($expected, JSON_UNESCAPED_UNICODE));
+	}
+}
+
+checkPayload('рубильник: обход ничего не показывает', [],
+	payload(['hard_from' => PAST, 'off' => true], 562, 'hard'));
+checkPayload('приостановки нет — рисовать нечего', [],
+	payload(['hard_from' => FUTURE]));
+checkPayload('чужому рисовать нечего', [],
+	payload(['hard_from' => PAST, 'users' => [562]], 44));
+
+checkPayload('жёсткая ступень: срок назван',
+	['stage' => Lock::STAGE_HARD, 'releaseSeconds' => Lock::RELEASE_SECONDS, 'hardFrom' => '01.01.2000'],
+	payload(['hard_from' => PAST]));
+
+// ⚠ Жёсткой даты нет — строки срока тоже нет: выдуманный срок хуже
+// отсутствующего, просьба без даты читается как формальность.
+checkPayload('мягкая ступень без жёсткой даты: срока нет',
+	['stage' => Lock::STAGE_SOFT, 'releaseSeconds' => Lock::RELEASE_SECONDS, 'hardFrom' => ''],
+	payload(['soft_from' => PAST]));
+
 if ($failed > 0)
 {
 	printf("lock_test: провалов %d\n", $failed);
