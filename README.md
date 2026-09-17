@@ -1,12 +1,12 @@
 # leadfinish
 
-[![CI](https://github.com/bx-shef/leadfinish/actions/workflows/ci.yml/badge.svg)](https://github.com/bx-shef/leadfinish/actions/workflows/ci.yml)
+[![CI](https://github.com/bx-shef/leadfinish/actions/workflows/ci.yml/badge.svg)](https://github.com/bx-shef/leadfinish/actions/workflows/ci.yml) ![Bitrix24 self-hosted](https://img.shields.io/badge/Made%20for-%D0%91%D0%B8%D1%82%D1%80%D0%B8%D0%BA%D1%8124%20%D0%9A%D0%BE%D1%80%D0%BE%D0%B1%D0%BE%D1%87%D0%BD%D0%B0%D1%8F%20%D0%B2%D0%B5%D1%80%D1%81%D0%B8%D1%8F-f0f4ff?logo=bitrix24&labelColor=020420)
 
 Битрикс24 (коробка). В попапе завершения обработки лида менеджер выбирает **уже
 существующую** сделку вместо создания новой.
 
 Репозиторий исходников локального модуля `shef.leadfinish`.
-Разработчик — **ИП Шевчик И.С.**, [bx-shef.by](http://bx-shef.by/).
+Разработчик — **ИП Шевчик И.С.**, [bx-shef.by](https://bx-shef.by/).
 
 ![Завершение лида: вместо «Создать сделку» — «Подобрать сделку», окно подбора,
 поиск по номеру заказа](docs/images/lead-finish-demo.gif)
@@ -80,6 +80,17 @@ git push origin v1.3.0
 
 Ветки, коммиты, PR и чек-лист перед мержем — в [`CONTRIBUTING.md`](CONTRIBUTING.md).
 Коротко: в `main` не пушим, всё через PR, мержит владелец.
+
+## Нужна своя доработка Битрикс24?
+
+Этот модуль — пример того, что делается, когда процесс не ложится на коробочные
+решения, а в маркетплейсе такого нет. Интеграция, AI-помощник, своё поведение
+стандартной кнопки — собирается под задачу.
+
+**[Описать задачу за 5 минут →](https://offer.bx-shef.by/)**
+
+Дальше оценка, фиксированная цена за этап или почасовая ставка и демо каждые
+1–2 недели. Останавливаете проект — платите только за сделанное.
 
 ## Лицензия
 
