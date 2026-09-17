@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   checks:
-    name: Проверки (PHP ${{ matrix.php }})
+    name: PHP ${{ matrix.php }}
     runs-on: ubuntu-latest
 
     strategy:
@@ -44,7 +44,7 @@ jobs:
         run: ./build.sh --check
 
   build:
-    name: Сборка поставки
+    name: Build
     runs-on: ubuntu-latest
     needs: checks
 
@@ -62,3 +62,28 @@ jobs:
           path: shef.leadfinish.zip
           retention-days: 14
           if-no-files-found: error
+
+  # Единственная проверка, которую требует защита ветки: всё остальное — её
+  # зависимости. Добавится версия PHP или ещё одна задача — ruleset трогать не
+  # придётся, а забыть внести туда новую проверку станет нечем.
+  ci:
+    name: CI
+    runs-on: ubuntu-latest
+    needs: [checks, build]
+
+    # ⚠ Обязательно вместе с проверкой результатов ниже. Без always() задача
+    # была бы ПРОПУЩЕНА при падении зависимости, а пропущенную проверку защита
+    # ветки засчитывает как пройденную — красный CI уехал бы в main.
+    if: always()
+
+    steps:
+      - name: Свести результат зависимостей
+        run: |
+          echo "проверки PHP: ${{ needs.checks.result }}"
+          echo "сборка:       ${{ needs.build.result }}"
+
+          if [ "${{ needs.checks.result }}" != 'success' ] || [ "${{ needs.build.result }}" != 'success' ]
+          then
+            echo '::error::Не прошла одна из зависимостей — смотри задачи выше'
+            exit 1
+          fi

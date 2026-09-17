@@ -23,7 +23,7 @@ permissions:
 
 jobs:
   release:
-    name: Собрать и выложить поставку
+    name: Release
     runs-on: ubuntu-latest
 
     steps:
