@@ -208,7 +208,7 @@ Composer только раскладывает файлы — этот шаг о
 
 ```bash
 unzip -o shef.leadfinish.zip      # архивом
-composer update bxshef/leadfinish   # либо Composer'ом
+composer update bxshef/leadfinish # либо Composer'ом
 ```
 
 ⚠ **И то и другое перетирает `.settings.php`** вместе со списком `allowed_users`
