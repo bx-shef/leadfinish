@@ -15,10 +15,13 @@
  *   - id обёртки зелёной кнопки = (`${controlId}_success_btn_wrapper`).toLowerCase().
  * Обе завязки — на суффикс id, поэтому переименование контрола ничего не ломает.
  *
- * Работает и в карточке лида, и в списке: попап там один и тот же. Отличие лишь
- * в том, откуда брать ID лида и нужно ли обновлять таблицу после привязки — см.
- * getLeadId() и reloadGrid(). Канбан сюда не входит: там другое окно, см.
- * EventHandler::matchesLeadPath().
+ * Три места, два механизма:
+ *   - карточка и список — попап прогресс-бара, ловим по суффиксу `_TERMINATION`;
+ *   - канбан — своё окно `kanban_column_popup`, ловим по точному id и по
+ *     контейнеру `crm_kanban_lead_win` внутри (тот же id ядро использует и для
+ *     счетов).
+ * Отличаются они тем, откуда брать ID лида и что обновлять после привязки —
+ * см. getLeadId(), getKanbanLeadId(), reloadGrid(), reloadKanban().
  */
 ;(function () {
 	'use strict';
@@ -30,6 +33,10 @@
 
 	var MARKER_CLASS = 'shef-leadfinish-button';
 	var DEBUG = false;
+
+	/** Окно канбана: id один на все сущности, лид отличаем по контейнеру. */
+	var KANBAN_POPUP_ID = 'kanban_column_popup';
+	var KANBAN_LEAD_CONTAINER_ID = 'crm_kanban_lead_win';
 
 	var config = window.shefLeadFinishConfig || {};
 	var MIN_LENGTH = parseInt(config.minLength, 10) || 3;
@@ -113,6 +120,48 @@
 			log('обновляю список ' + match[1]);
 			grid.reloadTable();
 		}
+	}
+
+	/**
+	 * Перечитать доску канбана после привязки.
+	 *
+	 * Карточку сюда приводит перетаскивание в колонку «сделка», и к моменту
+	 * привязки доска показывает промежуточное состояние: при переносе в колонку
+	 * ход не зафиксирован, при переносе в дропзону карточка вовсе спрятана.
+	 * Лид после привязки закрыт, поэтому честнее всего перечитать доску целиком,
+	 * а не двигать карточку руками.
+	 */
+	function reloadKanban()
+	{
+		var component = window.BX && BX.Crm && BX.Crm.KanbanComponent ? BX.Crm.KanbanComponent : null;
+		var grid = component && component.currentData ? component.currentData.grid : null;
+
+		if (grid && typeof grid.reload === 'function')
+		{
+			log('обновляю канбан');
+			grid.reload();
+		}
+	}
+
+	/**
+	 * Лид, ради которого ядро открыло окно канбана.
+	 *
+	 * Компонент кладёт карточку в `currentPopupItem` ДО показа окна, поэтому к
+	 * моменту `onAfterShow` она уже там. `currentData.item` — то же самое из
+	 * данных перетаскивания, оставлен запасным путём.
+	 */
+	function getKanbanLeadId()
+	{
+		var component = window.BX && BX.Crm && BX.Crm.KanbanComponent ? BX.Crm.KanbanComponent : null;
+		if (!component)
+		{
+			return 0;
+		}
+
+		var item = component.currentPopupItem
+			|| (component.currentData ? component.currentData.item : null);
+
+		return item && typeof item.getId === 'function' ? parseInt(item.getId(), 10) || 0 : 0;
 	}
 
 	/** Слайдер живёт в верхнем окне: карточка часто сама открыта в слайдере. */
@@ -430,12 +479,15 @@
 
 	// region Подбор ////
 
-	function SearchDialog(leadId, terminationPopup)
+	function SearchDialog(leadId, terminationPopup, options)
 	{
 		this.leadId = leadId;
 		// Попап ядра «Выберите результат…», из которого нас вызвали: закрываем
 		// его вместе со своим, иначе после ухода в слайдер он остаётся висеть.
 		this.terminationPopup = terminationPopup || null;
+		// Откуда открыли подбор: от этого зависит, что закрывать и что обновлять
+		// после привязки. Сейчас отличается только канбан — см. isKanban.
+		this.isKanban = !!(options && options.kanban);
 		this.popup = null;
 		this.input = null;
 		this.resultsNode = null;
@@ -706,10 +758,17 @@
 
 					this.closeAll();
 
-					// Список сам о привязке не узнает: строка осталась бы в
-					// прежней стадии до перезагрузки страницы. В карточке этот
-					// вызов ничего не находит и тихо выходит.
-					reloadGrid(this.terminationPopup);
+					// Список и канбан сами о привязке не узнают: строка осталась
+					// бы в прежней стадии, карточка — висеть в колонке. В детальной
+					// обновлять нечего, и оба вызова там тихо выходят.
+					if (this.isKanban)
+					{
+						reloadKanban();
+					}
+					else
+					{
+						reloadGrid(this.terminationPopup);
+					}
 
 					notify('Лид завершён, сделка «' + (data.dealTitle || '') + '» привязана');
 					openSlider(data.dealUrl || ('/crm/deal/details/' + this.selected.id + '/'));
@@ -746,6 +805,15 @@
 				this.popup.close();
 			}
 
+			// ⚠ В канбане карточка лида на время окна спрятана, а на закрытии
+			// компонент возвращает её в исходную колонку — если не сказать ему,
+			// что закрытие успешное. Без этого флага привязка уже выполнена, а
+			// доска показывает, будто ничего не было.
+			if (this.isKanban && window.BX && BX.Crm && BX.Crm.KanbanComponent)
+			{
+				BX.Crm.KanbanComponent.successClosePopup = true;
+			}
+
 			if (this.terminationPopup && typeof this.terminationPopup.close === 'function')
 			{
 				this.terminationPopup.close();
@@ -773,7 +841,7 @@
 
 		function openPicker()
 		{
-			new SearchDialog(context.leadId, context.popup).open();
+			new SearchDialog(context.leadId, context.popup, {kanban: !!context.kanban}).open();
 		}
 
 		if (!LOCK)
@@ -807,6 +875,105 @@
 				})
 			]
 		});
+	}
+
+	/**
+	 * Наш пункт в окне канбана.
+	 *
+	 * Оформлен как штатный `kanban-converttype`: окно рисует простой список
+	 * вариантов, и свой стиль тут был бы чужеродным.
+	 */
+	function buildKanbanConvertItem(context)
+	{
+		return BX.create('DIV', {
+			props: {className: 'kanban-converttype ' + MARKER_CLASS},
+			text: 'Подобрать сделку',
+			events: {
+				click: function (event) {
+					event.preventDefault();
+					event.stopPropagation();
+					onButtonClick(context);
+
+					return false;
+				}
+			}
+		});
+	}
+
+	/**
+	 * Окно канбана «Создать на основании лида:».
+	 *
+	 * ⚠ Ядро показывает под id `kanban_column_popup` НЕ только лиды: тем же
+	 * окном обслуживаются счета. Отличаем по содержимому — контейнер
+	 * `#crm_kanban_lead_win` подставляется только для лида. Фильтровать по
+	 * одному id нельзя.
+	 */
+	function handleKanbanPopup(popup)
+	{
+		var container = popup.getPopupContainer ? popup.getPopupContainer() : null;
+		if (!container)
+		{
+			return;
+		}
+
+		var list = container.querySelector('#' + KANBAN_LEAD_CONTAINER_ID + ' .crm-kanban-popup-convert-list');
+		if (!list)
+		{
+			// Окно не про лид — это нормально, молча выходим.
+			return;
+		}
+
+		// ⚠ Содержимое окна ядро НЕ пересоздаёт: `setContent(BX('crm_kanban_lead_win'))`
+		// подставляет один и тот же статический узел при каждом открытии. Поэтому
+		// проверка «маркер уже есть — выходим» здесь работать не может: наш пункт
+		// остался бы с прошлого раза вместе с замыканием на ПРОШЛЫЙ лид, и второе
+		// перетаскивание привязало бы не тот лид. Убираем старое и вставляем заново.
+		//
+		// В карточке и списке всё иначе: там ядро строит кнопки через BX.create()
+		// на каждое открытие, и пересоздавать нечего.
+		var stale = list.querySelectorAll('.' + MARKER_CLASS);
+		for (var s = 0; s < stale.length; s++)
+		{
+			stale[s].parentNode.removeChild(stale[s]);
+		}
+
+		var leadId = getKanbanLeadId();
+		if (!leadId)
+		{
+			log('канбан: не удалось определить лид — компонент не отдал карточку');
+
+			return;
+		}
+
+		var context = {
+			leadId: leadId,
+			popup: popup,
+			kanban: true
+		};
+
+		// ⚠ Прятать варианты нужно НА КАЖДОМ открытии: `showPopup()` сам заново
+		// расставляет им `display`, поэтому одного раза недостаточно — во второй
+		// раз окно открылось бы штатным.
+		//
+		// ⚠ На ЖЁСТКОЙ ступени приостановки штатные варианты остаются видимыми —
+		// то же правило, что и с зелёной кнопкой в карточке: приостанавливается
+		// наша доработка, а не CRM заказчика.
+		//
+		// Порядок важен: сначала прячем чужое, потом вставляем своё. Наш пункт
+		// тоже помечен классом `kanban-converttype`, и при обратном порядке мы
+		// спрятали бы его сами.
+		if (!LOCK || LOCK.stage !== 'hard')
+		{
+			var variants = list.querySelectorAll('.kanban-converttype');
+			for (var i = 0; i < variants.length; i++)
+			{
+				variants[i].style.display = 'none';
+			}
+		}
+
+		list.insertBefore(buildKanbanConvertItem(context), list.firstChild);
+
+		log('канбан: пункт добавлен, лид #' + leadId);
 	}
 
 	function handlePopup(popup)
@@ -858,12 +1025,19 @@
 			return;
 		}
 
-		if (!/_TERMINATION$/i.test(String(popup.getId())))
+		var popupId = String(popup.getId());
+
+		if (/_TERMINATION$/i.test(popupId))
 		{
+			handlePopup(popup);
+
 			return;
 		}
 
-		handlePopup(popup);
+		if (popupId === KANBAN_POPUP_ID)
+		{
+			handleKanbanPopup(popup);
+		}
 	});
 
 	log('слушатель попапа установлен');
