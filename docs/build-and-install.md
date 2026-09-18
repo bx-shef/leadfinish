@@ -98,9 +98,13 @@ unzip -l shef.leadfinish.zip | head    # проверить первый уро�
 composer require bxshef/leadfinish
 ```
 
-Composer только раскладывает файлы: регистрация модуля в системе всё равно через
-**Marketplace → Установленные решения** либо
-`\Bitrix\Main\ModuleManager::registerModule('shef.leadfinish')`.
+Composer только раскладывает файлы: ставится модуль всё равно через
+**Marketplace → Установленные решения**.
+
+⚠ Не подменяй установку вызовом `ModuleManager::registerModule()`. Он помечает
+модуль установленным, но не выполняет `DoInstall()`: события не регистрируются,
+файлы установки не раскладываются. Модуль будет числиться рабочим и ничего не
+делать.
 
 Что уедет в пакет, решает `export-ignore` в `.gitattributes`: GitHub собирает
 dist-архив через `git archive`, а тот его соблюдает. ⚠ Список обязан совпадать с
