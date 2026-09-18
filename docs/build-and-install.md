@@ -65,26 +65,34 @@ unzip -l shef.leadfinish.zip | head    # проверить первый уро�
 
 Альтернатива архиву. Пакет — `bxshef/leadfinish`, тип `bitrix-d7-module`.
 
-В `composer.json` проекта **обязательно** переопределить путь:
+Путей настраивать не нужно: пакет приезжает в `bitrix/modules/shef.leadfinish/`
+сам. Достигается это двумя полями **в самом пакете**:
 
 ```json
-"extra": {
-    "installer-paths": {
-        "local/modules/shef.leadfinish/": ["bxshef/leadfinish"]
-    }
-}
+"type": "bitrix-module",
+"extra": { "installer-name": "shef.leadfinish" }
 ```
 
-Без этого `composer/installers` положит модуль по умолчанию в
-`bitrix/modules/bxshef.leadfinish/` — и это неверно дважды:
+Почему именно так, если делаешь такой же модуль:
 
-- `bitrix/modules/` — каталог поставки платформы, который перетирается
-  обновлением; локальным модулям туда нельзя;
-- имя каталога у типа `bitrix-d7-module` собирается как `{vendor}.{name}`, то
-  есть `bxshef.leadfinish`, а Битрикс ищет каталог строго по ID модуля —
-  `shef.leadfinish`. Не совпало — модуль не заработает.
+- шаблон пути у типа `bitrix-module` — `{$bitrix_dir}/modules/{$name}/`, без
+  вендора в имени каталога. У более нового `bitrix-d7-module` шаблон
+  `{$bitrix_dir}/modules/{$vendor}.{$name}/`, и каталог получился бы
+  `bxshef.leadfinish` — Битрикс ищет строго по ID модуля и такой не найдёт;
+- `extra.installer-name` читается **из пакета** и подменяет `{$name}`. Это
+  единственная переменная шаблона, на которую пакет может повлиять;
+- `{$bitrix_dir}` берётся только из **корневого** `composer.json`
+  (`BitrixInstaller::inflectPackageVars()`), поэтому положить пакет в `local/`
+  без настройки у потребителя нельзя. Отсюда и выбор `bitrix/modules/`.
 
-`installer-paths` закрывает оба вопроса разом, поэтому строка обязательна.
+От потребителя требуется одно — разрешить плагин раскладки:
+
+```json
+"config": { "allow-plugins": { "composer/installers": true } }
+```
+
+Это требование Composer, а не наше. Забыли — **установка обрывается с ошибкой**,
+в `vendor/` тоже ничего не остаётся: отказ громкий.
 
 ```bash
 composer require bxshef/leadfinish
@@ -117,14 +125,35 @@ dist-архив через `git archive`, а тот его соблюдает. �
 ## Куда класть
 
 ```
-/home/bitrix/www/local/modules/shef.leadfinish/
+/home/bitrix/www/bitrix/modules/shef.leadfinish/
 ```
 
-Именно `local/`, а не `bitrix/`: `bitrix/modules/` — территория поставки, её
-перетирает обновление платформы.
+`local/modules/` тоже годится — модуль работает из обоих мест.
+
+⚠ **Каталог модуля браузеру недоступен в любом из них.** В поставке nginx:
+
+```nginx
+location ~* ^/bitrix/(modules|local_cache|stack_cache|managed_cache|php_interface) {
+    deny all;
+}
+```
+
+Запрос к `/bitrix/modules/shef.leadfinish/js/...` отдаёт **403**. Поэтому модуль
+с фронтом обязан копировать JS и CSS туда, откуда они отдаются, — в
+`/bitrix/js/<ID модуля>/`, как делают штатные модули. Делается это в
+`DoInstall()`, снимается в `DoUninstall()`:
+
+```php
+CopyDirFiles(__DIR__ . '/../js', $_SERVER['DOCUMENT_ROOT'] . '/bitrix/js/shef.leadfinish/js', true, true);
+// ...
+DeleteDirFilesEx('/bitrix/js/shef.leadfinish');
+```
+
+Побочный итог полезный: путь к фронту перестаёт зависеть от места установки
+модуля.
 
 ```bash
-cd /home/bitrix/www/local/modules/
+cd /home/bitrix/www/bitrix/modules/
 unzip -o shef.leadfinish.zip
 chown -R bitrix:bitrix shef.leadfinish
 ```
@@ -140,7 +169,7 @@ chown -R bitrix:bitrix shef.leadfinish
 строго **после** раскладки:
 
 ```bash
-cd /home/bitrix/www/local/modules/
+cd /home/bitrix/www/bitrix/modules/
 unzip -o shef.leadfinish.zip        # 1. файлы, .settings.php — ПОСТАВОЧНЫЙ
 vim shef.leadfinish/.settings.php   # 2. и только теперь — свои значения
 chown -R bitrix:bitrix shef.leadfinish
