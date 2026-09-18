@@ -117,48 +117,42 @@ CRM под номером вида «Заказ покупателя 00КА-6690
 
 ### 2. Положить файлы в портал
 
-**Архивом из релиза.** Скачать `shef.leadfinish.zip` со [страницы
-релизов](https://github.com/bx-shef/leadfinish/releases):
-
-```bash
-cd /home/bitrix/www/local/modules/
-unzip -o shef.leadfinish.zip
-chown -R bitrix:bitrix shef.leadfinish
-```
-
-**Через Composer.** В `composer.json` проекта нужно **один раз** указать, куда
-класть модуль:
-
-```json
-{
-    "extra": {
-        "installer-paths": {
-            "local/modules/shef.leadfinish/": ["bxshef/leadfinish"]
-        }
-    }
-}
-```
-
-Затем:
+**Через Composer.** Настраивать пути не нужно — пакет приезжает туда, куда надо,
+сам:
 
 ```bash
 composer require bxshef/leadfinish
 ```
 
-⚠ **Без `installer-paths` модуль уедет не туда, и дважды.** Тип пакета
-`bitrix-d7-module` по умолчанию кладёт его в `bitrix/modules/bxshef.leadfinish/`:
+Единственное, что требуется в `composer.json` проекта, — разрешить плагин
+раскладки. Это требование самого Composer, обойти его нельзя:
 
-- `bitrix/modules/` — каталог поставки платформы, который перетирает её
-  обновление; локальным модулям туда нельзя;
-- имя каталога собирается как `{вендор}.{пакет}`, то есть `bxshef.leadfinish`, а
-  Битрикс ищет каталог строго по ID модуля — `shef.leadfinish`. Не совпало —
-  модуль не заработает.
+```json
+{
+    "config": {
+        "allow-plugins": { "composer/installers": true }
+    }
+}
+```
 
-Строка выше чинит оба места сразу, поэтому она обязательна, а не желательна.
+Забыли — Composer **остановится с ошибкой** и не поставит ничего. Тихо не туда
+не уедет.
+
+**Архивом из релиза.** Скачать `shef.leadfinish.zip` со [страницы
+релизов](https://github.com/bx-shef/leadfinish/releases):
+
+```bash
+cd /home/bitrix/www/bitrix/modules/
+unzip -o shef.leadfinish.zip
+chown -R bitrix:bitrix shef.leadfinish
+```
+
+`local/modules/` тоже работает — фронт модуля от его расположения не зависит,
+см. ниже.
 
 ### 3. Вписать ID в `.settings.php`
 
-Открыть `/home/bitrix/www/local/modules/shef.leadfinish/.settings.php` и
+Открыть `/home/bitrix/www/bitrix/modules/shef.leadfinish/.settings.php` и
 заменить список в `allowed_users` на тот, что выписали в шаге 1:
 
 ```php
@@ -187,8 +181,18 @@ composer require bxshef/leadfinish
 
 Composer только раскладывает файлы — этот шаг он не заменяет.
 
-Установка регистрирует обработчик `main::OnEpilog`. Настроек в базе модуль не
-создаёт: весь список доступа — это файл из шага 3.
+Установка регистрирует обработчик `main::OnEpilog` и **копирует фронт** в
+`/bitrix/js/shef.leadfinish/`. Настроек в базе модуль не создаёт: весь список
+доступа — это файл из шага 3.
+
+⚠ Без этого шага кнопки не будет, даже если файлы разложены: каталог модуля
+браузеру недоступен. В поставке nginx стоит
+`location ~* ^/bitrix/(modules|local_cache|…) { deny all; }`, и запрос к
+`/bitrix/modules/shef.leadfinish/js/...` отдаёт **403**. Поэтому JS и CSS
+переезжают туда, откуда отдаются, — так же делают штатные модули Битрикса.
+
+Побочный итог: путь к фронту не зависит от того, куда положен модуль, и
+`bitrix/modules/` с `local/modules/` работают одинаково.
 
 ### 5. Сбросить кеш JS/CSS
 

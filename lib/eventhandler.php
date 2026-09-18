@@ -10,7 +10,8 @@ use Bitrix\Main\Page\Asset;
  */
 class EventHandler
 {
-	private const ASSET_DIR = '/local/modules/' . Access::MODULE_ID;
+	/** Путь один на весь модуль — см. докблок у Access::ASSET_DIR. */
+	private const ASSET_DIR = Access::ASSET_DIR;
 
 	/**
 	 * Обработчик main::OnEpilog.

@@ -1,9 +1,9 @@
 {
     "name": "bxshef/leadfinish",
     "description": "Битрикс24 (коробка): завершение обработки лида привязкой уже существующей сделки вместо создания новой",
-    "type": "bitrix-d7-module",
+    "type": "bitrix-module",
     "license": "MIT",
-    "keywords": ["bitrix", "bitrix24", "crm", "lead", "local-module"],
+    "keywords": ["bitrix", "bitrix24", "crm", "lead", "module"],
     "homepage": "https://github.com/bx-shef/leadfinish",
     "authors": [
         {
@@ -20,6 +20,7 @@
         "composer/installers": "^1.0 || ^2.0"
     },
     "extra": {
+        "installer-name": "shef.leadfinish",
         "branch-alias": {
             "dev-main": "1.x-dev"
         }
