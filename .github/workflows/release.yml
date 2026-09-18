@@ -159,10 +159,20 @@ jobs:
           cat response.json
           echo
 
-          if [ "$code" != '200' ]
-          then
-            echo "::warning::Packagist ответил ${code} — обнови пакет кнопкой Update на packagist.org"
-            exit 0
-          fi
+          # ⚠ Успех здесь — 202 Accepted, а не 200: Packagist ставит обновление
+          # в очередь и отдаёт номер задачи, а не результат. Сверка только с 200
+          # помечала предупреждением каждый УДАЧНЫЙ релиз — проверено на v1.7.0:
+          # тело ответа {"status":"success","jobs":[...]}, код 202, и рядом
+          # warning «обнови кнопкой Update». Пакет при этом обновлялся.
+          #
+          # 200 оставлен на случай, если API когда-нибудь начнёт отвечать
+          # синхронно.
+          case "$code" in
+            200|202) ;;
+            *)
+              echo "::warning::Packagist ответил ${code} — обнови пакет кнопкой Update на packagist.org"
+              exit 0
+              ;;
+          esac
 
           echo "Packagist принял запрос на обновление"
