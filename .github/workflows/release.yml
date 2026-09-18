@@ -128,3 +128,41 @@ jobs:
           gh release create "$TAG" shef.leadfinish.zip \
             --title "$TAG" \
             --notes-file release-notes.md
+
+      # Packagist сам про новый тег не узнает: он перечитывает репозиторий либо
+      # по хуку, либо по кнопке Update на странице пакета. Без этого composer
+      # ещё сутки будет ставить прошлую версию, а на странице висит красная
+      # плашка «This package is not auto-updated».
+      #
+      # Дёргаем его API сами — это ровно то, что делает кнопка Update.
+      # Нужны два секрета (Settings → Secrets and variables → Actions):
+      #
+      #   PACKAGIST_USERNAME — логин на packagist.org
+      #   PACKAGIST_TOKEN    — API-токен оттуда же, packagist.org/profile/
+      #
+      # ⚠ Секретов нет — шаг пропускается, и релиз от этого НЕ падает. Так и
+      # задумано: невыложенный релиз чинить нечем, а отставший Packagist
+      # догоняется кнопкой за десять секунд. Порядок тоже намеренный — сначала
+      # релиз, потом Packagist: он читает теги из GitHub, и звать его раньше
+      # значит звать впустую.
+      - name: Обновить пакет на Packagist
+        if: env.PACKAGIST_USERNAME != '' && env.PACKAGIST_TOKEN != ''
+        env:
+          PACKAGIST_USERNAME: ${{ secrets.PACKAGIST_USERNAME }}
+          PACKAGIST_TOKEN: ${{ secrets.PACKAGIST_TOKEN }}
+        run: |
+          code="$(curl -sS -o response.json -w '%{http_code}' -X POST \
+            -H 'Content-Type: application/json' \
+            -d "{\"repository\":{\"url\":\"https://github.com/${GITHUB_REPOSITORY}\"}}" \
+            "https://packagist.org/api/update-package?username=${PACKAGIST_USERNAME}&apiToken=${PACKAGIST_TOKEN}")"
+
+          cat response.json
+          echo
+
+          if [ "$code" != '200' ]
+          then
+            echo "::warning::Packagist ответил ${code} — обнови пакет кнопкой Update на packagist.org"
+            exit 0
+          fi
+
+          echo "Packagist принял запрос на обновление"
